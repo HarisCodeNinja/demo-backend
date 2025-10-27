@@ -1,0 +1,72 @@
+{
+    "name": "HRM",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+        "format": "prettier --write \"src/**/*.ts\"",
+        "format:check": "prettier --check \"src/**/*.ts\"",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node ./dist/server.js",
+        "build": "tsc",
+        "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+        "lint:fix": "eslint \"src/**/*.ts\" --fix",
+        "prepare": "husky"
+    },
+    "keywords": [],
+    "author": "Hyper",
+    "license": "AGPLv3",
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.2",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.3",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/morgan": "^1.9.10",
+        "@types/multer": "^2.0.0",
+        "@types/node": "^22.13.1",
+        "@types/swagger-jsdoc": "^6.0.4",
+        "@types/swagger-ui-express": "^4.1.8",
+        "@typescript-eslint/eslint-plugin": "^8.34.1",
+        "@typescript-eslint/parser": "^8.34.1",
+        "eslint": "^9.29.0",
+        "husky": "^9.0.10",
+        "lint-staged": "^15.2.1",
+        "prettier": "^3.4.2",
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+		    "@types/nodemailer": "^7.0.1",
+        "bcryptjs": "^2.4.3",
+        "celebrate": "^15.0.3",
+        "change-case-all": "^2.1.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.7",
+        "express": "^5.1.0",
+        "express-async-handler": "^1.2.0",
+        "express-rate-limit": "^7.5.1",
+        "helmet": "^8.1.0",
+        "jsonwebtoken": "^9.0.2",
+		    "crypto": "^1.0.1", 
+		    "nodemailer": "^7.0.3",
+        "morgan": "^1.10.0",
+        "multer": "^2.0.2",
+        "pg": "^8.13.1",
+        "pino": "^9.8.0",
+        "pino-pretty": "^13.1.1",
+        "sequelize": "^6.37.5",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1",
+        "uuidv4": "^6.2.13",
+					"zod": "^4.0.14"
+    },
+    "lint-staged": {
+      "src/**/*.ts": [
+        "eslint --fix",
+        "prettier --write"
+      ]
+    }
+    }
+    
