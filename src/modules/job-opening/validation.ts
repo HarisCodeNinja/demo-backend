@@ -21,8 +21,8 @@ export const createJobOpeningPayloadValidator = z.object({
 	locationId: z.uuid("Invalid UUID format"),
 	requiredExperience: z.number().int({error: "Required Experience is required"}),
 	status: z.string({error: "Status is required"}),
-	publishedAt: z.date().nullish(),
-	closedAt: z.date().nullish(),
+	publishedAt: z.coerce.date().nullish(),
+	closedAt: z.coerce.date().nullish(),
 });
 
 
@@ -34,8 +34,8 @@ export const updateJobOpeningPayloadValidator = (jobOpeningId: string) => z.obje
 	locationId: z.uuid("Invalid UUID format"),
 	requiredExperience: z.number().int({error: "Required Experience is required"}),
 	status: z.string({error: "Status is required"}),
-	publishedAt: z.date().nullish(),
-	closedAt: z.date().nullish(),
+	publishedAt: z.coerce.date().nullish(),
+	closedAt: z.coerce.date().nullish(),
 });
 
 

@@ -18,7 +18,7 @@ export const createSalaryStructurePayloadValidator = z.object({
 	basicSalary: z.number({error: "Basic Salary is required"}),
 	allowance: z.any().nullish(),
 	deduction: z.any().nullish(),
-	effectiveDate: z.date({error: "Effective Date is required"}),
+	effectiveDate: z.coerce.date({error: "Effective Date is required"}),
 	status: z.string({error: "Status is required"}),
 });
 
@@ -28,7 +28,7 @@ export const updateSalaryStructurePayloadValidator = (salaryStructureId: string)
 	basicSalary: z.number({error: "Basic Salary is required"}),
 	allowance: z.any().nullish(),
 	deduction: z.any().nullish(),
-	effectiveDate: z.date({error: "Effective Date is required"}),
+	effectiveDate: z.coerce.date({error: "Effective Date is required"}),
 	status: z.string({error: "Status is required"}),
 });
 

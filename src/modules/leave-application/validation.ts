@@ -16,8 +16,8 @@ export const leaveApplicationParamValidator = z.object({
 export const createLeaveApplicationPayloadValidator = z.object({
 	employeeId: z.uuid("Invalid UUID format"),
 	leaveTypeId: z.uuid("Invalid UUID format"),
-	startDate: z.date({error: "Start Date is required"}),
-	endDate: z.date({error: "End Date is required"}),
+	startDate: z.coerce.date({error: "Start Date is required"}),
+	endDate: z.coerce.date({error: "End Date is required"}),
 	reason: z.string({error: "Reason is required"}),
 	status: z.string({error: "Status is required"}),
 	approvedBy: z.any().nullish(),
@@ -27,8 +27,8 @@ export const createLeaveApplicationPayloadValidator = z.object({
 export const updateLeaveApplicationPayloadValidator = (leaveApplicationId: string) => z.object({
 	employeeId: z.uuid("Invalid UUID format"),
 	leaveTypeId: z.uuid("Invalid UUID format"),
-	startDate: z.date({error: "Start Date is required"}),
-	endDate: z.date({error: "End Date is required"}),
+	startDate: z.coerce.date({error: "Start Date is required"}),
+	endDate: z.coerce.date({error: "End Date is required"}),
 	reason: z.string({error: "Reason is required"}),
 	status: z.string({error: "Status is required"}),
 	approvedBy: z.any().nullish(),

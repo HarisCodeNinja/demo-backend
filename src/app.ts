@@ -9,11 +9,8 @@ import rateLimit from 'express-rate-limit';
 import { prefixRoutes } from './util/routeConfig';
 import { defaultRoutes } from './config/routes/defaultRoutes';
 
-
 import { errorHandler } from './middleware/errorHandler';
 import { setupSwagger } from './config/swagger';
-
-
 
 const app = express();
 
@@ -35,16 +32,16 @@ app.get('/health', (_req: Request, res: Response) => {
 // Rate limiter (basic)
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: 6000,
 });
 app.use(limiter);
 // Register default routes
-    defaultRoutes.forEach(routeConfig => {
-      const configuredRouters = prefixRoutes(routeConfig);
-      configuredRouters.forEach(router => {
-        app.use(routeConfig.path, router);
-      });
-    });
+defaultRoutes.forEach((routeConfig) => {
+  const configuredRouters = prefixRoutes(routeConfig);
+  configuredRouters.forEach((router) => {
+    app.use(routeConfig.path, router);
+  });
+});
 
 // Celebrate validation error formatting
 app.use(celebrateErrors());

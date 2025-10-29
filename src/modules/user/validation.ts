@@ -29,24 +29,24 @@ export const createUserPayloadValidator = z.object({
 
 export const updateUserPayloadValidator = (userId: string) => z.object({
 	email: z.email("Invalid email format").refine(async (value) => {
-		const existingUser = await User.findOne({ 
-			where: { 
+		const existingUser = await User.findOne({
+			where: {
 				email: value,
 				userId:  { [Op.ne]: userId }
-			} 
+			}
 		});
 		return !existingUser;
 	}, "Email already exists"),
 	username: z.string({error: "Username is required"}).refine(async (value) => {
-		const existingUser = await User.findOne({ 
-			where: { 
+		const existingUser = await User.findOne({
+			where: {
 				username: value,
 				userId:  { [Op.ne]: userId }
-			} 
+			}
 		});
 		return !existingUser;
 	}, "Username already exists"),
-	password: z.string({error: "Password is required"}),
+	password: z.string().optional(),
 	role: z.string({error: "Role is required"}),
 });
 

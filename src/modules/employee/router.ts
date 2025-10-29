@@ -2,14 +2,16 @@ import { Router, Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
 import { validateZodSchema } from '../../middleware/zodValidation';
 import { validateAccessToken, requireRoles } from '../../helper/auth';
-import {employeeQueryValidator, createEmployeePayloadValidator, updateEmployeePayloadValidator, employeeParamValidator} from './validation';
-import {fetchEmployeeList, selectEmployee, addEmployee, editEmployee, updateEmployee, getEmployee, deleteEmployee} from './service';
+import { employeeQueryValidator, createEmployeePayloadValidator, updateEmployeePayloadValidator, employeeParamValidator } from './validation';
+import { fetchEmployeeList, selectEmployee, addEmployee, editEmployee, updateEmployee, getEmployee, deleteEmployee, selectManagers } from './service';
 import { QueryEmployeeInput } from './types';
-
 
 export const EmployeeRoutes = Router();
 
-EmployeeRoutes.get('/', validateAccessToken, requireRoles(['user:manager','user:hr','user:admin']),
+EmployeeRoutes.get(
+  '/',
+  validateAccessToken,
+  requireRoles(['user:manager', 'user:hr', 'user:admin']),
   validateZodSchema(employeeQueryValidator, 'query'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await fetchEmployeeList(req.query as unknown as QueryEmployeeInput);
@@ -18,7 +20,10 @@ EmployeeRoutes.get('/', validateAccessToken, requireRoles(['user:manager','user:
   }),
 );
 
-EmployeeRoutes.get('/select', validateAccessToken, requireRoles(['user:manager','user:hr','user:admin']),
+EmployeeRoutes.get(
+  '/select',
+  validateAccessToken,
+  requireRoles(['user:manager', 'user:hr', 'user:admin']),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await selectEmployee();
     const status = (result as any).statusCode || 200;
@@ -26,7 +31,21 @@ EmployeeRoutes.get('/select', validateAccessToken, requireRoles(['user:manager',
   }),
 );
 
-EmployeeRoutes.post('/', validateAccessToken, requireRoles(['user:hr','user:admin']),
+EmployeeRoutes.get(
+  '/select-managers',
+  validateAccessToken,
+  requireRoles(['user:manager', 'user:hr', 'user:admin']),
+  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await selectManagers();
+    const status = (result as any).statusCode || 200;
+    res.status(status).json(result);
+  }),
+);
+
+EmployeeRoutes.post(
+  '/',
+  validateAccessToken,
+  requireRoles(['user:hr', 'user:admin']),
   validateZodSchema(createEmployeePayloadValidator, 'body'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await addEmployee(req.body);
@@ -35,7 +54,10 @@ EmployeeRoutes.post('/', validateAccessToken, requireRoles(['user:hr','user:admi
   }),
 );
 
-EmployeeRoutes.get('/:employeeId', validateAccessToken, requireRoles(['user:manager','user:hr','user:admin']),
+EmployeeRoutes.get(
+  '/:employeeId',
+  validateAccessToken,
+  requireRoles(['user:manager', 'user:hr', 'user:admin']),
   validateZodSchema(employeeParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await editEmployee(req.params);
@@ -53,7 +75,10 @@ const validateUpdateEmployee = (req: Request, res: Response, next: NextFunction)
   const schema = updateEmployeePayloadValidator(req.params.employeeId);
   return validateZodSchema(schema, 'body')(req, res, next);
 };
-EmployeeRoutes.put('/:employeeId', validateAccessToken, requireRoles(['user:manager','user:hr','user:admin']),
+EmployeeRoutes.put(
+  '/:employeeId',
+  validateAccessToken,
+  requireRoles(['user:manager', 'user:hr', 'user:admin']),
   validateZodSchema(employeeParamValidator, 'params'),
   validateUpdateEmployee,
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -61,7 +86,7 @@ EmployeeRoutes.put('/:employeeId', validateAccessToken, requireRoles(['user:mana
 
     if (result.isError) {
       res.status(404).json(result);
-			return;
+      return;
     }
 
     const status = (result as any).statusCode || 200;
@@ -69,14 +94,17 @@ EmployeeRoutes.put('/:employeeId', validateAccessToken, requireRoles(['user:mana
   }),
 );
 
-EmployeeRoutes.get('/detail/:employeeId', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
+EmployeeRoutes.get(
+  '/detail/:employeeId',
+  validateAccessToken,
+  requireRoles(['user:employee', 'user:manager', 'user:hr', 'user:admin']),
   validateZodSchema(employeeParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getEmployee(req.params);
 
     if (result.isError) {
       res.status(404).json(result);
-			return;
+      return;
     }
 
     const status = (result as any).statusCode || 200;
@@ -84,18 +112,20 @@ EmployeeRoutes.get('/detail/:employeeId', validateAccessToken, requireRoles(['us
   }),
 );
 
-EmployeeRoutes.delete('/:employeeId', validateAccessToken, requireRoles(['user:hr','user:admin']),
+EmployeeRoutes.delete(
+  '/:employeeId',
+  validateAccessToken,
+  requireRoles(['user:hr', 'user:admin']),
   validateZodSchema(employeeParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await deleteEmployee(req.params);
 
     if (result.isError) {
       res.status(404).json(result);
-			return;
+      return;
     }
 
     const status = (result as any).statusCode || 202;
     res.status(status).json(result);
   }),
 );
-

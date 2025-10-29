@@ -15,8 +15,8 @@ export const payslipParamValidator = z.object({
 
 export const createPayslipPayloadValidator = z.object({
 	employeeId: z.uuid("Invalid UUID format"),
-	payPeriodStart: z.date({error: "Pay Period Start is required"}),
-	payPeriodEnd: z.date({error: "Pay Period End is required"}),
+	payPeriodStart: z.coerce.date({error: "Pay Period Start is required"}),
+	payPeriodEnd: z.coerce.date({error: "Pay Period End is required"}),
 	grossSalary: z.number({error: "Gross Salary is required"}),
 	netSalary: z.number({error: "Net Salary is required"}),
 	deductionsAmount: z.number({error: "Deductions Amount is required"}),
@@ -27,8 +27,8 @@ export const createPayslipPayloadValidator = z.object({
 
 export const updatePayslipPayloadValidator = (payslipId: string) => z.object({
 	employeeId: z.uuid("Invalid UUID format"),
-	payPeriodStart: z.date({error: "Pay Period Start is required"}),
-	payPeriodEnd: z.date({error: "Pay Period End is required"}),
+	payPeriodStart: z.coerce.date({error: "Pay Period Start is required"}),
+	payPeriodEnd: z.coerce.date({error: "Pay Period End is required"}),
 	grossSalary: z.number({error: "Gross Salary is required"}),
 	netSalary: z.number({error: "Net Salary is required"}),
 	deductionsAmount: z.number({error: "Deductions Amount is required"}),
