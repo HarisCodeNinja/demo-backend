@@ -207,12 +207,7 @@ export const getPerformanceReviewStats = async (): Promise<PerformanceReviewStat
   // Calculate average rating if there's a rating field
   const reviews = await PerformanceReview.findAll({
     attributes: [[fn('AVG', col('overall_rating')), 'averageRating']],
-    where: {
-      status: 'Completed',
-      overallRating: {
-        [Op.not]: null,
-      },
-    },
+    where: literal("status = 'Completed' AND overall_rating IS NOT NULL"),
     raw: true,
   });
 
@@ -367,11 +362,7 @@ export const getAttendanceTrend = async (): Promise<AttendanceStats[]> => {
 export const getCandidateSourceDistribution = async () => {
   const distribution = await Candidate.findAll({
     attributes: ['source', [fn('COUNT', col('candidate_id')), 'count']],
-    where: {
-      source: {
-        [Op.not]: null,
-      },
-    },
+    where: literal('source IS NOT NULL'),
     group: ['source'],
     raw: true,
   });
