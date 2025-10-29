@@ -9,34 +9,25 @@ import {
   userParamValidator,
   userForgotPasswordValidation,
   userResetPasswordValidation,
-  userChangePasswordValidation
+  userChangePasswordValidation,
 } from './validation';
 
-import {
-  resetUserPasswords,
-  loginUser,
-  registerUser,
-  fetchUserProfile,
-  updateUserProfile,
-  forgotUserPassword,
-  resetUserPassword,
-  changeUserPassword
-} from './service';
+import { resetUserPasswords, loginUser, registerUser, fetchUserProfile, updateUserProfile, forgotUserPassword, resetUserPassword, changeUserPassword } from './service';
 
 import { validateAccessToken } from '../../helper/auth';
 
-
-
 export const UserAuthRoutes = Router();
 
-UserAuthRoutes.post('/reset-passwords',
+UserAuthRoutes.post(
+  '/reset-passwords',
   asyncHandler(async (_req, res) => {
     const data = await resetUserPasswords();
     res.json(data);
   }),
 );
 
-UserAuthRoutes.post('/login',
+UserAuthRoutes.post(
+  '/login',
   validateZodSchema(userLoginValidation, 'body'),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body as { email: string; password: string };
@@ -46,7 +37,8 @@ UserAuthRoutes.post('/login',
   }),
 );
 
-UserAuthRoutes.post('/register',
+UserAuthRoutes.post(
+  '/register',
   validateZodSchema(userRegisterValidation, 'body'),
   asyncHandler(async (req, res) => {
     const result = await registerUser(req.body as any);
@@ -55,7 +47,8 @@ UserAuthRoutes.post('/register',
   }),
 );
 
-UserAuthRoutes.get('/profile',
+UserAuthRoutes.get(
+  '/profile',
   validateAccessToken,
   asyncHandler(async (req, res) => {
     const userId = (req as any).user?.userId;
@@ -69,7 +62,8 @@ const validateUpdateUserProfile = (req: Request, res: Response, next: NextFuncti
   const schema = userProfileUpdateValidation(req.params.userId);
   return validateZodSchema(schema, 'body')(req, res, next);
 };
-UserAuthRoutes.put('/profile/:userId',
+UserAuthRoutes.put(
+  '/profile/:userId',
   validateAccessToken,
   validateZodSchema(userParamValidator, 'params'),
   validateUpdateUserProfile,
@@ -86,7 +80,8 @@ UserAuthRoutes.put('/profile/:userId',
   }),
 );
 
-UserAuthRoutes.post('/forgot-password',
+UserAuthRoutes.post(
+  '/forgot-password',
   validateZodSchema(userForgotPasswordValidation, 'body'),
   asyncHandler(async (req, res) => {
     const { email } = req.body;
@@ -96,7 +91,8 @@ UserAuthRoutes.post('/forgot-password',
   }),
 );
 
-UserAuthRoutes.post('/reset-password',
+UserAuthRoutes.post(
+  '/reset-password',
   validateZodSchema(userResetPasswordValidation, 'body'),
   asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body;
@@ -106,7 +102,8 @@ UserAuthRoutes.post('/reset-password',
   }),
 );
 
-UserAuthRoutes.put('/change-password/:userId',
+UserAuthRoutes.put(
+  '/change-password/:userId',
   validateAccessToken,
   validateZodSchema(userParamValidator, 'params'),
   validateZodSchema(userChangePasswordValidation, 'body'),

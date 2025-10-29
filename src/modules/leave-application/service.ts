@@ -65,27 +65,20 @@ export const editLeaveApplication = async (params: any): Promise<LeaveApplicatio
     {
       model: Employee,
       as: 'employee',
-      attributes: [
-        [Sequelize.col('employee.employee_id'), 'employeeId'],
-        [Sequelize.col('employee.first_name'), 'firstName'],
-        [Sequelize.col('employee.last_name'), 'lastName'],
-      ],
+      attributes: ['employeeId', 'firstName', 'lastName'],
     },
     {
       model: LeaveType,
       as: 'leaveType',
-      attributes: [
-        [Sequelize.col('leaveType.leave_type_id'), 'leaveTypeId'],
-        [Sequelize.col('leaveType.type_name'), 'typeName'],
-      ],
+      attributes: ['leaveTypeId', 'typeName'],
     },
   ];
 
   const leaveApplication = await LeaveApplication.findOne({
     attributes: [
       // employeeId, leaveTypeId, startDate, endDate, reason, status, approvedById
-      [Sequelize.col('LeaveApplication.employee_id'), 'employeeId'],
-      [Sequelize.col('LeaveApplication.leave_type_id'), 'leaveTypeId'],
+      [Sequelize.col('employee.employee_id'), 'employeeId'],
+      [Sequelize.col('leaveType.leave_type_id'), 'leaveTypeId'],
       [Sequelize.col('LeaveApplication.start_date'), 'startDate'],
       [Sequelize.col('LeaveApplication.end_date'), 'endDate'],
       [Sequelize.col('LeaveApplication.reason'), 'reason'],
