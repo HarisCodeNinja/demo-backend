@@ -70,32 +70,30 @@ export const getEmployeeDistribution = async (): Promise<EmployeeDistribution[]>
 // Today's Attendance Statistics
 export const getTodayAttendanceStats = async (): Promise<AttendanceStats> => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+  const todayString = today.toISOString().split('T')[0];
 
   const totalEmployees = await Employee.count({ where: { status: 'active' } });
 
   const attendanceRecords = await Attendance.findAll({
     where: {
       attendanceDate: {
-        [Op.gte]: today,
-        [Op.lt]: tomorrow,
+        [Op.between]: [todayStart, todayEnd],
       },
     },
     attributes: ['status'],
     raw: true,
   });
 
-  const present = attendanceRecords.filter((r: any) => r.status === 'Present').length;
-  const absent = attendanceRecords.filter((r: any) => r.status === 'Absent').length;
-  const late = attendanceRecords.filter((r: any) => r.status === 'Late').length;
+  const present = attendanceRecords.filter((r: any) => r.status === 'Present' || r.status === 'present').length;
+  const absent = attendanceRecords.filter((r: any) => r.status === 'Absent' || r.status === 'absent').length;
+  const late = attendanceRecords.filter((r: any) => r.status === 'Late' || r.status === 'late').length;
 
   const attendanceRate = totalEmployees > 0 ? (present / totalEmployees) * 100 : 0;
 
   return {
-    date: today.toISOString(),
+    date: todayString,
     present,
     absent,
     late,
@@ -248,10 +246,8 @@ export const getGoalStats = async (): Promise<GoalStats> => {
 // Department-wise Attendance for Today
 export const getDepartmentWiseAttendance = async (): Promise<DepartmentWiseAttendance[]> => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
   const departments = await Department.findAll({
     attributes: ['departmentId', 'departmentName'],
@@ -280,14 +276,13 @@ export const getDepartmentWiseAttendance = async (): Promise<DepartmentWiseAtten
       ],
       where: {
         attendanceDate: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow,
+          [Op.between]: [todayStart, todayEnd],
         },
       },
       raw: true,
     });
 
-    const present = attendanceRecords.filter((r: any) => r.status === 'Present').length;
+    const present = attendanceRecords.filter((r: any) => r.status === 'Present' || r.status === 'present').length;
     const absent = totalEmployees - present;
     const attendanceRate = totalEmployees > 0 ? (present / totalEmployees) * 100 : 0;
 
@@ -336,29 +331,27 @@ export const getAttendanceTrend = async (): Promise<AttendanceStats[]> => {
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    date.setHours(0, 0, 0, 0);
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+    const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+    const dateString = date.toISOString().split('T')[0];
 
     const attendanceRecords = await Attendance.findAll({
       where: {
         attendanceDate: {
-          [Op.gte]: date,
-          [Op.lt]: nextDate,
+          [Op.between]: [dateStart, dateEnd],
         },
       },
       attributes: ['status'],
       raw: true,
     });
 
-    const present = attendanceRecords.filter((r: any) => r.status === 'Present').length;
-    const absent = attendanceRecords.filter((r: any) => r.status === 'Absent').length;
-    const late = attendanceRecords.filter((r: any) => r.status === 'Late').length;
+    const present = attendanceRecords.filter((r: any) => r.status === 'Present' || r.status === 'present').length;
+    const absent = attendanceRecords.filter((r: any) => r.status === 'Absent' || r.status === 'absent').length;
+    const late = attendanceRecords.filter((r: any) => r.status === 'Late' || r.status === 'late').length;
     const attendanceRate = totalEmployees > 0 ? (present / totalEmployees) * 100 : 0;
 
     results.push({
-      date: date.toISOString().split('T')[0],
+      date: dateString,
       present,
       absent,
       late,
@@ -641,7 +634,6 @@ const getSampleDashboardData = () => {
 
 // Get all dashboard data at once
 export const getAllDashboardData = async () => {
-  return getSampleDashboardData();
   try {
     const [
       overviewStats,
