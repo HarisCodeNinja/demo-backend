@@ -80,3 +80,7 @@ export const userChangePasswordValidation = z.object({
 export const userParamValidator = z.object({
   userId: z.uuid('Invalid UUID format'),
 });
+
+export const refreshTokenValidation = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});

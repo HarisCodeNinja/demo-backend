@@ -4,8 +4,6 @@ import { User } from '../modules/user/model';
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-
-
 // Express Auth Helpers
 
 export const generateAccessToken = (data: object) => {
@@ -16,21 +14,38 @@ export const generateAccessToken = (data: object) => {
   return jwt.sign(data, secret, { algorithm: 'HS256', expiresIn });
 };
 
+export const generateRefreshToken = (data: object) => {
+  const secret = process.env.REFRESH_TOKEN_SECRET;
+  let expiresIn: string | number = process.env.REFRESH_TOKEN_EXPIRATION || '2d';
+  if (secret === undefined) throw new Error('REFRESH_TOKEN is not defined');
+  if (!isNaN(Number(expiresIn))) expiresIn = Number(expiresIn);
+
+  const payload = {
+    ...(data as any),
+    userVersion: (data as any).userVersion || 1,
+    jti: crypto.randomUUID(),
+    iat: Math.floor(Date.now() / 1000),
+    type: 'refresh',
+  };
+
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn });
+};
+
 export const getScope = async (user: User, object: string) => {
   let scope = [];
-		scope.push('user');
-		if(user.role === 'employee'){
-			scope.push('user:employee');
-		}
-		if(user.role === 'manager'){
-			scope.push('user:manager');
-		}
-		if(user.role === 'hr'){
-			scope.push('user:hr');
-		}
-		if(user.role === 'admin'){
-			scope.push('user:admin');
-		}
+  scope.push('user');
+  if (user.role === 'employee') {
+    scope.push('user:employee');
+  }
+  if (user.role === 'manager') {
+    scope.push('user:manager');
+  }
+  if (user.role === 'hr') {
+    scope.push('user:hr');
+  }
+  if (user.role === 'admin') {
+    scope.push('user:admin');
+  }
 
   return scope;
 };
@@ -94,7 +109,10 @@ export const generateRandomPassword = (minLength: number = 8) => {
     const allChars = lowercaseLetters + uppercaseLetters + numbers + specialChars;
     password += getRandomChar(allChars);
   }
-  password = password.split('').sort(() => Math.random() - 0.5).join('');
+  password = password
+    .split('')
+    .sort(() => Math.random() - 0.5)
+    .join('');
   return { password };
 };
 
@@ -116,4 +134,56 @@ export const getPasswordResetExpiry = (minutes: number = 15) => {
 export const clearPasswordResetState = (auth: any, tokenField: string, expiryField: string) => {
   auth[tokenField] = null;
   auth[expiryField] = null;
+};
+
+export const validateRefreshToken = (req: Request, res: Response, next: NextFunction) => {
+  const { refreshToken } = req.body;
+  const secret = process.env.REFRESH_TOKEN_SECRET;
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      errorCode: 'NO_REFRESH_TOKEN',
+      message: 'Refresh token is required',
+    });
+  }
+
+  if (!secret) {
+    return res.status(500).json({
+      errorCode: 'NO_REFRESH_SECRET',
+      message: 'Refresh token secret not configured',
+    });
+  }
+
+  jwt.verify(refreshToken, secret, (err: any, decoded: any) => {
+    if (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          errorCode: 'REFRESH_TOKEN_EXPIRED',
+          message: 'Refresh token expired',
+          code: 'REFRESH_TOKEN_EXPIRED',
+        });
+      }
+      return res.status(403).json({
+        errorCode: 'INVALID_REFRESH_TOKEN',
+        message: 'Invalid refresh token',
+      });
+    }
+
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({
+        errorCode: 'INVALID_TOKEN_TYPE',
+        message: 'Invalid token type',
+      });
+    }
+
+    (req as any).user = {
+      userId: decoded.userId,
+      username: decoded.username,
+      role: decoded.role,
+      scope: decoded.scope,
+      userVersion: decoded.userVersion,
+      tokenId: decoded.jti,
+    };
+    next();
+  });
 };

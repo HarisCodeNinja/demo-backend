@@ -10,11 +10,22 @@ import {
   userForgotPasswordValidation,
   userResetPasswordValidation,
   userChangePasswordValidation,
+  refreshTokenValidation,
 } from './validation';
 
-import { resetUserPasswords, loginUser, registerUser, fetchUserProfile, updateUserProfile, forgotUserPassword, resetUserPassword, changeUserPassword } from './service';
+import {
+  resetUserPasswords,
+  loginUser,
+  registerUser,
+  fetchUserProfile,
+  updateUserProfile,
+  forgotUserPassword,
+  resetUserPassword,
+  changeUserPassword,
+  refreshUserToken,
+} from './service';
 
-import { validateAccessToken } from '../../helper/auth';
+import { validateAccessToken, validateRefreshToken } from '../../helper/auth';
 
 export const UserAuthRoutes = Router();
 
@@ -115,6 +126,18 @@ UserAuthRoutes.put(
     }
     const { currentPassword, newPassword } = req.body;
     const result = await changeUserPassword(userId, currentPassword, newPassword);
+    const status = (result as any).statusCode || 200;
+    res.status(status).json(result);
+  }),
+);
+
+UserAuthRoutes.post(
+  '/refresh-token',
+  validateZodSchema(refreshTokenValidation, 'body'),
+  validateRefreshToken,
+  asyncHandler(async (req, res) => {
+    const userId = (req as any).user?.userId;
+    const result = await refreshUserToken(userId);
     const status = (result as any).statusCode || 200;
     res.status(status).json(result);
   }),
