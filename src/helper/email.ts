@@ -10,10 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail(
-  to: string,
-  template: { subject: string; html: string },
-) {
+export async function sendEmail(to: string, template: { subject: string; html: string }) {
   try {
     const info = await transporter.sendMail({
       from: process.env.SMTP_SENDER,
@@ -21,7 +18,7 @@ export async function sendEmail(
       subject: template.subject,
       html: template.html,
     });
-    
+
     console.log('Email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -43,6 +40,6 @@ export function generatePasswordResetEmail(resetLink: string, userName?: string)
         <p>If you didn't request this password reset, please ignore this email.</p>
         <p>Best regards,<br>Hyper Team</p>
       </div>
-    `
+    `,
   };
 }
