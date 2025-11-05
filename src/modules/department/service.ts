@@ -1,6 +1,6 @@
 import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { Department } from './model';
-
+import { cache } from '../../util/cache';
 
 import { CreateDepartmentInput, UpdateDepartmentInput, QueryDepartmentInput } from './types';
 
@@ -25,22 +25,33 @@ export const fetchDepartmentList = async (params: QueryDepartmentInput) => {
 };
 
 export const selectDepartment = async () => {
+	// Check cache first - departments rarely change
+	const cacheKey = 'select:departments';
+	const cached = cache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
 
 	const results = await Department.findAll({
 		attributes: [
 			[Sequelize.col('Department.department_id'), 'value'],
 			[Sequelize.col('Department.department_name'), 'label'],
 		],
+		raw: true, // Faster - no Sequelize model overhead
 	});
 
-	const plainRows = results.map((item) => item.get({ plain: true }));
-	return plainRows;
+	// Cache for 5 minutes (300 seconds)
+	cache.set(cacheKey, results, 300);
+	return results;
 };
 
 export const addDepartment = async (payload: CreateDepartmentInput): Promise<any> => {
 	// Prepare payload data and add properties
 
 	const department = await Department.create(payload);
+
+	// Invalidate cache when department is added
+	cache.delete('select:departments');
 
 	return department.get({ plain: true });
 };
@@ -83,6 +94,9 @@ export const updateDepartment = async (params: any, payload: UpdateDepartmentInp
 	}
 
 	await department.update(payload);
+
+	// Invalidate cache when department is updated
+	cache.delete('select:departments');
 
 	return {
 		message: 'Department updated successfully',
@@ -133,6 +147,9 @@ export const deleteDepartment = async (params: any): Promise<any> => {
 	}
 
 	await department.destroy();
+
+	// Invalidate cache when department is deleted
+	cache.delete('select:departments');
 
 	return { messageCode: 'DEPARTMENT_DELETED_SUCCESSFULLY',  message: 'department Deleted Successfully' };
 };

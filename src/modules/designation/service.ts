@@ -1,6 +1,6 @@
 import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { Designation } from './model';
-
+import { cache } from '../../util/cache';
 
 import { CreateDesignationInput, UpdateDesignationInput, QueryDesignationInput } from './types';
 
@@ -25,23 +25,25 @@ export const fetchDesignationList = async (params: QueryDesignationInput) => {
 };
 
 export const selectDesignation = async () => {
+	const cacheKey = 'select:designations';
+	const cached = cache.get(cacheKey);
+	if (cached) return cached;
 
 	const results = await Designation.findAll({
 		attributes: [
 			[Sequelize.col('Designation.designation_id'), 'value'],
 			[Sequelize.col('Designation.designation_name'), 'label'],
 		],
+		raw: true,
 	});
 
-	const plainRows = results.map((item) => item.get({ plain: true }));
-	return plainRows;
+	cache.set(cacheKey, results, 300);
+	return results;
 };
 
 export const addDesignation = async (payload: CreateDesignationInput): Promise<any> => {
-	// Prepare payload data and add properties
-
 	const designation = await Designation.create(payload);
-
+	cache.delete('select:designations');
 	return designation.get({ plain: true });
 };
 
@@ -83,6 +85,7 @@ export const updateDesignation = async (params: any, payload: UpdateDesignationI
 	}
 
 	await designation.update(payload);
+	cache.delete('select:designations');
 
 	return {
 		message: 'Designation updated successfully',
@@ -133,6 +136,7 @@ export const deleteDesignation = async (params: any): Promise<any> => {
 	}
 
 	await designation.destroy();
+	cache.delete('select:designations');
 
 	return { messageCode: 'DESIGNATION_DELETED_SUCCESSFULLY',  message: 'designation Deleted Successfully' };
 };

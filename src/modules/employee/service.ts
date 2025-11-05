@@ -3,6 +3,7 @@ import { Employee } from './model';
 import { User } from '../user/model';
 import { Designation } from '../designation/model';
 import { Department } from '../department/model';
+import { cache } from '../../util/cache';
 
 import { CreateEmployeeInput, UpdateEmployeeInput, QueryEmployeeInput } from './types';
 import { uuid } from 'uuidv4';
@@ -66,18 +67,34 @@ export const fetchEmployeeList = async (params: QueryEmployeeInput) => {
 };
 
 export const selectEmployee = async () => {
+  // Check cache first - employee list changes less frequently
+  const cacheKey = 'select:employees';
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const results = await Employee.findAll({
     attributes: [
       [Sequelize.col('Employee.employee_id'), 'value'],
       [Sequelize.col('Employee.first_name'), 'label'],
     ],
+    raw: true, // Faster - no Sequelize model overhead
   });
 
-  const plainRows = results.map((item) => item.get({ plain: true }));
-  return plainRows;
+  // Cache for 2 minutes (120 seconds) - shorter TTL as employees change more often
+  cache.set(cacheKey, results, 120);
+  return results;
 };
 
 export const selectManagers = async () => {
+  // Check cache first
+  const cacheKey = 'select:managers';
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const results = await Employee.findAll({
     attributes: [
       [Sequelize.col('Employee.employee_id'), 'value'],
@@ -90,12 +107,15 @@ export const selectManagers = async () => {
         where: {
           role: 'manager',
         },
+        attributes: [], // Don't need user attributes in response
       },
     ],
+    raw: true, // Faster - no Sequelize model overhead
   });
 
-  const plainRows = results.map((item) => item.get({ plain: true }));
-  return plainRows;
+  // Cache for 2 minutes (120 seconds)
+  cache.set(cacheKey, results, 120);
+  return results;
 };
 
 export const addEmployee = async (payload: CreateEmployeeInput): Promise<any> => {
@@ -109,6 +129,10 @@ export const addEmployee = async (payload: CreateEmployeeInput): Promise<any> =>
     employeeUniqueId: `EMP-${uuid()}`,
   };
   const employee = await Employee.create({ ...payload, ...employeeDefaultPayload });
+
+  // Invalidate cache when employee is added
+  cache.delete('select:employees');
+  cache.delete('select:managers');
 
   return employee.get({ plain: true });
 };
@@ -188,6 +212,10 @@ export const updateEmployee = async (params: any, payload: UpdateEmployeeInput):
   }
 
   await employee.update(payload);
+
+  // Invalidate cache when employee is updated
+  cache.delete('select:employees');
+  cache.delete('select:managers');
 
   return {
     message: 'Employee updated successfully',
@@ -275,6 +303,10 @@ export const deleteEmployee = async (params: any): Promise<any> => {
   }
 
   await employee.destroy();
+
+  // Invalidate cache when employee is deleted
+  cache.delete('select:employees');
+  cache.delete('select:managers');
 
   return { messageCode: 'EMPLOYEE_DELETED_SUCCESSFULLY', message: 'employee Deleted Successfully' };
 };

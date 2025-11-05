@@ -1,6 +1,6 @@
 import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { LeaveType } from './model';
-
+import { cache } from '../../util/cache';
 
 import { CreateLeaveTypeInput, UpdateLeaveTypeInput, QueryLeaveTypeInput } from './types';
 
@@ -27,27 +27,29 @@ export const fetchLeaveTypeList = async (params: QueryLeaveTypeInput) => {
 };
 
 export const selectLeaveType = async () => {
+	const cacheKey = 'select:leave-types';
+	const cached = cache.get(cacheKey);
+	if (cached) return cached;
 
 	const results = await LeaveType.findAll({
 		attributes: [
 			[Sequelize.col('LeaveType.leave_type_id'), 'value'],
 			[Sequelize.col('LeaveType.type_name'), 'label'],
 		],
+		raw: true,
 	});
 
-	const plainRows = results.map((item) => item.get({ plain: true }));
-	return plainRows;
+	cache.set(cacheKey, results, 300);
+	return results;
 };
 
 export const addLeaveType = async (payload: CreateLeaveTypeInput): Promise<any> => {
-	// Prepare payload data and add properties
-
 	const leaveTypeDefaultPayload = {
 			maxDaysPerYear: payload.maxDaysPerYear ?? 0,
 			isPaid: payload.isPaid ?? true
 	};
 	const leaveType = await LeaveType.create({...payload, ...leaveTypeDefaultPayload});
-
+	cache.delete('select:leave-types');
 	return leaveType.get({ plain: true });
 };
 
@@ -91,6 +93,7 @@ export const updateLeaveType = async (params: any, payload: UpdateLeaveTypeInput
 	}
 
 	await leaveType.update(payload);
+	cache.delete('select:leave-types');
 
 	return {
 		message: 'LeaveType updated successfully',
@@ -143,6 +146,7 @@ export const deleteLeaveType = async (params: any): Promise<any> => {
 	}
 
 	await leaveType.destroy();
+	cache.delete('select:leave-types');
 
 	return { messageCode: 'LEAVE_TYPE_DELETED_SUCCESSFULLY',  message: 'leaveType Deleted Successfully' };
 };
