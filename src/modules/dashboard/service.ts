@@ -238,56 +238,90 @@ export const getGoalStats = async (): Promise<GoalStats> => {
   };
 };
 
-// Department-wise Attendance for Today
+// Department-wise Attendance for Today - OPTIMIZED to avoid N+1 queries
 export const getDepartmentWiseAttendance = async (): Promise<DepartmentWiseAttendance[]> => {
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
   const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
-  const departments = await Department.findAll({
-    attributes: ['departmentId', 'departmentName'],
+  // Single query to get employee counts per department
+  const employeeCounts = await Employee.findAll({
+    attributes: [
+      [col('department_id'), 'departmentId'],
+      [col('department.department_name'), 'departmentName'],
+      [fn('COUNT', col('Employee.employee_id')), 'totalEmployees'],
+    ],
+    include: [
+      {
+        model: Department,
+        as: 'department',
+        attributes: [],
+      },
+    ],
+    where: {
+      status: 'active',
+    },
+    group: ['Employee.department_id', 'department.department_id', 'department.department_name'],
     raw: true,
-  });
+  }) as any[];
 
-  const results: DepartmentWiseAttendance[] = [];
-
-  for (const dept of departments) {
-    const totalEmployees = await Employee.count({
-      where: {
-        departmentId: dept.departmentId,
-        status: 'active',
+  // Single query to get attendance counts per department
+  const attendanceCounts = await Attendance.findAll({
+    attributes: [
+      [col('employee.department_id'), 'departmentId'],
+      [col('Attendance.status'), 'status'],
+      [fn('COUNT', col('Attendance.attendance_id')), 'count'],
+    ],
+    include: [
+      {
+        model: Employee,
+        as: 'employee',
+        attributes: [],
+        where: { status: 'active' },
       },
-    });
-
-    const attendanceRecords = await Attendance.findAll({
-      attributes: ['status'],
-      include: [
-        {
-          model: Employee,
-          as: 'employee',
-          where: { departmentId: dept.departmentId },
-          attributes: [],
-        },
-      ],
-      where: {
-        attendanceDate: {
-          [Op.between]: [todayStart, todayEnd],
-        },
+    ],
+    where: {
+      attendanceDate: {
+        [Op.between]: [todayStart, todayEnd],
       },
-      raw: true,
-    });
+    },
+    group: ['employee.department_id', 'Attendance.status'],
+    raw: true,
+  }) as any[];
 
-    const present = attendanceRecords.filter((r: any) => r.status === 'Present' || r.status === 'present').length;
+  // Build attendance map by department
+  const attendanceMap = new Map<string, { present: number; total: number }>();
+
+  for (const record of attendanceCounts) {
+    const deptId = record.departmentId;
+    const status = (record.status || '').toLowerCase();
+    const count = parseInt(record.count, 10);
+
+    if (!attendanceMap.has(deptId)) {
+      attendanceMap.set(deptId, { present: 0, total: 0 });
+    }
+
+    const stats = attendanceMap.get(deptId)!;
+    if (status === 'present') {
+      stats.present += count;
+    }
+  }
+
+  // Combine results
+  const results: DepartmentWiseAttendance[] = employeeCounts.map((dept) => {
+    const totalEmployees = parseInt(dept.totalEmployees, 10);
+    const attendance = attendanceMap.get(dept.departmentId) || { present: 0, total: 0 };
+    const present = attendance.present;
     const absent = totalEmployees - present;
     const attendanceRate = totalEmployees > 0 ? (present / totalEmployees) * 100 : 0;
 
-    results.push({
+    return {
       departmentName: dept.departmentName,
       present,
       absent,
       attendanceRate: Math.round(attendanceRate * 100) / 100,
-    });
-  }
+    };
+  });
 
   return results;
 };
@@ -318,38 +352,70 @@ export const getMonthlyLeaveDistribution = async (): Promise<MonthlyLeaveDistrib
   }));
 };
 
-// Attendance Trend (Last 7 Days)
+// Attendance Trend (Last 7 Days) - OPTIMIZED to avoid N+1 queries
 export const getAttendanceTrend = async (): Promise<AttendanceStats[]> => {
-  const results: AttendanceStats[] = [];
   const totalEmployees = await Employee.count({ where: { status: 'active' } });
 
+  // Calculate date range for last 7 days
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 6);
+  const startDateStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0);
+  const endDateEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59);
+
+  // Single query to get all attendance records for last 7 days grouped by date and status
+  const attendanceRecords = await Attendance.findAll({
+    attributes: [
+      [fn('DATE', col('attendance_date')), 'date'],
+      [col('status'), 'status'],
+      [fn('COUNT', col('attendance_id')), 'count'],
+    ],
+    where: {
+      attendanceDate: {
+        [Op.between]: [startDateStart, endDateEnd],
+      },
+    },
+    group: [fn('DATE', col('attendance_date')), 'status'],
+    raw: true,
+  }) as any[];
+
+  // Build attendance map by date
+  const attendanceMap = new Map<string, { present: number; absent: number; late: number }>();
+
+  for (const record of attendanceRecords) {
+    const date = record.date;
+    const status = (record.status || '').toLowerCase();
+    const count = parseInt(record.count, 10);
+
+    if (!attendanceMap.has(date)) {
+      attendanceMap.set(date, { present: 0, absent: 0, late: 0 });
+    }
+
+    const stats = attendanceMap.get(date)!;
+    if (status === 'present') {
+      stats.present = count;
+    } else if (status === 'absent') {
+      stats.absent = count;
+    } else if (status === 'late') {
+      stats.late = count;
+    }
+  }
+
+  // Build results for each of the last 7 days
+  const results: AttendanceStats[] = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-    const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
     const dateString = date.toISOString().split('T')[0];
 
-    const attendanceRecords = await Attendance.findAll({
-      where: {
-        attendanceDate: {
-          [Op.between]: [dateStart, dateEnd],
-        },
-      },
-      attributes: ['status'],
-      raw: true,
-    });
-
-    const present = attendanceRecords.filter((r: any) => r.status === 'Present' || r.status === 'present').length;
-    const absent = attendanceRecords.filter((r: any) => r.status === 'Absent' || r.status === 'absent').length;
-    const late = attendanceRecords.filter((r: any) => r.status === 'Late' || r.status === 'late').length;
-    const attendanceRate = totalEmployees > 0 ? (present / totalEmployees) * 100 : 0;
+    const stats = attendanceMap.get(dateString) || { present: 0, absent: 0, late: 0 };
+    const attendanceRate = totalEmployees > 0 ? (stats.present / totalEmployees) * 100 : 0;
 
     results.push({
       date: dateString,
-      present,
-      absent,
-      late,
+      present: stats.present,
+      absent: stats.absent,
+      late: stats.late,
       totalEmployees,
       attendanceRate: Math.round(attendanceRate * 100) / 100,
     });
