@@ -12,7 +12,8 @@ export const PayslipRoutes = Router();
 PayslipRoutes.get('/', validateAccessToken, requireRoles(['user:employee','user:hr','user:admin']),
   validateZodSchema(payslipQueryValidator, 'query'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await fetchPayslipList(req.query as unknown as QueryPayslipInput);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await fetchPayslipList(req.query as unknown as QueryPayslipInput, userContext);
     const status = (result as any).statusCode || 200;
     res.status(status).json(result);
   }),
@@ -64,11 +65,13 @@ PayslipRoutes.put('/:payslipId', validateAccessToken, requireRoles(['user:hr','u
 PayslipRoutes.get('/detail/:payslipId', validateAccessToken, requireRoles(['user:employee','user:hr','user:admin']),
   validateZodSchema(payslipParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await getPayslip(req.params);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await getPayslip(req.params, userContext);
 
-    if (result.isError) {
-      res.status(404).json(result);
-			return;
+    if (result && 'errorCode' in result) {
+      const status = result.errorCode === 'FORBIDDEN' ? 403 : 404;
+      res.status(status).json(result);
+      return;
     }
 
     const status = (result as any).statusCode || 200;

@@ -1,14 +1,72 @@
 import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { Payslip } from './model';
 import { Employee } from '../employee/model';
+import { User } from '../user/model';
 import { convertStringFieldsToNumbers } from '../../util/dataTransform';
 
 
 import { CreatePayslipInput, UpdatePayslipInput, QueryPayslipInput } from './types';
 
-export const fetchPayslipList = async (params: QueryPayslipInput) => {
+// Interface for user context from JWT token
+interface UserContext {
+  userId: string;
+  role: string;
+  scope?: string[];
+}
+
+/**
+ * Helper function to build role-based where conditions for payslips
+ * NOTE: Payslips are highly sensitive financial data - only employees can see their own
+ * Managers are intentionally excluded from accessing team payslips
+ *
+ * @param userContext - The authenticated user's context (userId, role, scope)
+ * @returns Object with employeeIds array that the user is allowed to see
+ */
+const getRoleBasedFilter = async (userContext: UserContext): Promise<{ allowedEmployeeIds: string[] } | null> => {
+  const { userId, role } = userContext;
+
+  // HR and Admin can see all payslips - no filtering needed
+  if (role === 'hr' || role === 'admin') {
+    return null; // null means no filtering
+  }
+
+  // For employee role - can ONLY see their own payslips (not even managers get team access)
+  if (role === 'employee') {
+    const currentEmployee = await Employee.findOne({
+      where: { userId },
+      attributes: ['employeeId'],
+    });
+
+    if (!currentEmployee) {
+      // If no employee record found, they can't see any payslips
+      return { allowedEmployeeIds: [] };
+    }
+
+    return { allowedEmployeeIds: [currentEmployee.employeeId] };
+  }
+
+  // Managers should not have been given access, but if they somehow got here, deny access
+  // Default: no access
+  return { allowedEmployeeIds: [] };
+};
+
+export const fetchPayslipList = async (params: QueryPayslipInput, userContext: UserContext) => {
 	const pageSize = Math.min(params.pageSize || 10, 1000);
 	const curPage = params.page || 0;
+
+	// Apply role-based filtering for payslips (CRITICAL: financial data)
+	const roleFilter = await getRoleBasedFilter(userContext);
+	let whereClause: any = {};
+
+	// If roleFilter is not null, apply the employeeId filter
+	if (roleFilter !== null) {
+		if (roleFilter.allowedEmployeeIds.length === 0) {
+			// User has no access to any payslips
+			return { data: [], meta: { total: 0, page: curPage, pageSize } };
+		}
+		whereClause.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+	}
+	// If roleFilter is null (HR/Admin), no where clause needed - they see all
 
 	const { count, rows } = await Payslip.findAndCountAll({
 		attributes: [
@@ -28,6 +86,7 @@ export const fetchPayslipList = async (params: QueryPayslipInput) => {
 			[Sequelize.col('employee.first_name'), 'firstName'],
 			[Sequelize.col('employee.last_name'), 'lastName'],
 		],
+		where: whereClause, // Apply role-based filtering here
 		include: [
 			{
 				model: Employee,
@@ -115,8 +174,22 @@ export const updatePayslip = async (params: any, payload: UpdatePayslipInput): P
 	};
 };
 
-export const getPayslip = async (params: any): Promise<any> => {
+export const getPayslip = async (params: any, userContext: UserContext): Promise<any> => {
 	let where: any = {};
+
+	// Apply role-based filtering for payslips (CRITICAL: financial data)
+	const roleFilter = await getRoleBasedFilter(userContext);
+
+	// If roleFilter is not null, apply the employeeId filter
+	if (roleFilter !== null) {
+		if (roleFilter.allowedEmployeeIds.length === 0) {
+			// User has no access to any payslips
+			return { errorCode: 'FORBIDDEN', message: 'You do not have permission to view this payslip' };
+		}
+		where.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+	}
+	// If roleFilter is null (HR/Admin), no where clause needed - they see all
+
 	const include: any[] = [
 		{
 			model: Employee,
