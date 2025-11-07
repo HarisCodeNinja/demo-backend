@@ -1,16 +1,16 @@
 export interface CreateAttendanceInput {
 	employeeId: string;
 	attendanceDate: Date;
-	checkInTime: Date;
-	checkOutTime?: Date;
+	checkInTime?: Date | null;
+	checkOutTime?: Date | null;
 	status: string;
 }
 
 export interface UpdateAttendanceInput {
 	employeeId: string;
 	attendanceDate: Date;
-	checkInTime: Date;
-	checkOutTime?: Date;
+	checkInTime?: Date | null;
+	checkOutTime?: Date | null;
 	status: string;
 }
 

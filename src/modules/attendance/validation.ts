@@ -11,11 +11,13 @@ export const attendanceParamValidator = z.object({
   attendanceId: z.uuid('Invalid UUID format'),
 });
 
+const optionalDate = z.coerce.date().optional().nullable();
+
 export const createAttendancePayloadValidator = z.object({
   employeeId: z.uuid('Invalid UUID format'),
   attendanceDate: z.coerce.date({ error: 'Attendance Date is required' }),
-  checkInTime: z.coerce.date({ error: 'Check In Time is required' }),
-  checkOutTime: z.coerce.date().nullish(),
+  checkInTime: optionalDate,
+  checkOutTime: optionalDate,
   status: z.string({ error: 'Status is required' }),
 });
 
@@ -23,7 +25,7 @@ export const updateAttendancePayloadValidator = (attendanceId: string) =>
   z.object({
     employeeId: z.uuid('Invalid UUID format'),
     attendanceDate: z.coerce.date({ error: 'Attendance Date is required' }),
-    checkInTime: z.coerce.date({ error: 'Check In Time is required' }),
-    checkOutTime: z.coerce.date().nullish(),
+    checkInTime: optionalDate,
+    checkOutTime: optionalDate,
     status: z.string({ error: 'Status is required' }),
   });

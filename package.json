@@ -12,6 +12,7 @@
         "build": "tsc",
         "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
         "lint:fix": "eslint \"src/**/*.ts\" --fix",
+        "seed:dashboard-hyper": "ts-node src/scripts/seedDashboardHyperData.ts",
         "prepare": "husky"
     },
     "keywords": [],

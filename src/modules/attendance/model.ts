@@ -6,8 +6,8 @@ export class Attendance extends Model<InferAttributes<Attendance>, InferCreation
   declare attendanceId: CreationOptional<string>;
   declare employeeId: ForeignKey<Employee['employeeId']>;
   declare attendanceDate: Date;
-  declare checkInTime: Date;
-  declare checkOutTime: CreationOptional<Date>;
+  declare checkInTime: CreationOptional<Date | null>;
+  declare checkOutTime: CreationOptional<Date | null>;
   declare status: string;
   declare totalHour: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
@@ -34,13 +34,11 @@ export function initializeAttendance(sequelize: Sequelize) {
       },
       checkInTime: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
+        allowNull: true,
       },
       checkOutTime: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       status: {
         type: DataTypes.STRING,

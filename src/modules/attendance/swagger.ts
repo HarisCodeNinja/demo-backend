@@ -432,7 +432,7 @@ const defaultAreaAttendanceSwagger: SwaggerDefinition = {
 					createdAt: { type: 'string', format: 'date-time', description: 'createdAt' },
 					updatedAt: { type: 'string', format: 'date-time', description: 'updatedAt' }
 				},
-				required: ['attendanceId', ' employeeId', ' attendanceDate', ' checkInTime', ' status', ' createdAt', ' updatedAt']
+				required: ['attendanceId', ' employeeId', ' attendanceDate', ' status', ' createdAt', ' updatedAt']
 			},
 
 			AttendanceListResponse: {
@@ -489,7 +489,7 @@ const defaultAreaAttendanceSwagger: SwaggerDefinition = {
 					checkOutTime: { type: 'string', format: 'date-time', description: 'checkOutTime', example: '2024-01-01T12:00:00Z' },
 					status: { type: 'string', description: 'status', example: 'status Option' }
 				},
-				required: ['employeeId', 'attendanceDate', 'checkInTime', 'status']
+				required: ['employeeId', 'attendanceDate', 'status']
 			},
 
 			AttendanceCreateResponse: {
@@ -508,7 +508,7 @@ const defaultAreaAttendanceSwagger: SwaggerDefinition = {
 					checkOutTime: { type: 'string', format: 'date-time', description: 'checkOutTime' },
 					status: { type: 'string', description: 'status' }
 				},
-				required: ['employeeId', 'attendanceDate', 'checkInTime', 'status']
+				required: ['employeeId', 'attendanceDate', 'status']
 			},
 
 			AttendanceUpdateResponse: {

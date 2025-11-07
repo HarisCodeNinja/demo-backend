@@ -43,8 +43,6 @@ export const addAttendance = async (payload: CreateAttendanceInput): Promise<any
 
 	const attendanceDefaultPayload = {
 			attendanceDate: payload.attendanceDate ?? new Date(),
-			checkInTime: payload.checkInTime ?? new Date(),
-			checkOutTime: payload.checkOutTime ?? new Date(),
 			status: payload.status ?? "Present"
 	};
 	const attendance = await Attendance.create({...payload, ...attendanceDefaultPayload});
