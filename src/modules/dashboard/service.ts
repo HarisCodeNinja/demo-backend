@@ -247,7 +247,7 @@ export const getDepartmentWiseAttendance = async (): Promise<DepartmentWiseAtten
   // Single query to get employee counts per department
   const employeeCounts = await Employee.findAll({
     attributes: [
-      [col('department_id'), 'departmentId'],
+      [col('Employee.department_id'), 'departmentId'],
       [col('department.department_name'), 'departmentName'],
       [fn('COUNT', col('Employee.employee_id')), 'totalEmployees'],
     ],

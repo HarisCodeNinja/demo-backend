@@ -3,6 +3,7 @@ import { Sequelize, Model, DataTypes, InferAttributes, InferCreationAttributes, 
 import { User } from '../user/model';
 import { Designation } from '../designation/model';
 import { Department } from '../department/model';
+import { Document } from '../document/model';
 
 export class Employee extends Model<InferAttributes<Employee>, InferCreationAttributes<Employee>> {
   declare employeeId: CreationOptional<string>;
@@ -149,5 +150,9 @@ export function establishRelationsEmployee() {
   Employee.belongsTo(Employee, {
     foreignKey: 'reportingManagerId',
     as: 'reportingManager',
+  });
+  Employee.hasMany(Document, {
+    foreignKey: 'employeeId',
+    as: 'documents',
   });
 }
