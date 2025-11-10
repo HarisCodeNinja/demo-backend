@@ -62,12 +62,10 @@ export function initializeJobOpening(sequelize: Sequelize) {
       publishedAt: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       closedAt: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       createdBy: {
         type: DataTypes.STRING,
@@ -93,9 +91,9 @@ export function initializeJobOpening(sequelize: Sequelize) {
         { name: 'jobopenings_closedat_idx', fields: ['closed_at'], unique: false },
         { name: 'jobopenings_publishedat_idx', fields: ['published_at'], unique: false },
         { name: 'jobopenings_status_idx', fields: ['status'], unique: false },
-        { name: 'jobopenings_locationid_idx', fields: ['location_id'], unique: false },
+        { name: 'jobopenings_status_department_idx', fields: ['status', 'department_id'], unique: false },
+        { name: 'jobopenings_status_location_idx', fields: ['status', 'location_id'], unique: false },
         { name: 'jobopenings_designationid_idx', fields: ['designation_id'], unique: false },
-        { name: 'jobopenings_departmentid_idx', fields: ['department_id'], unique: false },
         { name: 'jobopenings_title_idx', fields: ['title'], unique: false },
         { name: 'u_jobopenings_jobopeningid_pkey', fields: ['job_opening_id'], unique: true },
       ],

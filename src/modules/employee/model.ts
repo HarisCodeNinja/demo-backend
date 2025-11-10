@@ -56,7 +56,6 @@ export function initializeEmployee(sequelize: Sequelize) {
       dateOfBirth: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       gender: {
         type: DataTypes.STRING,
@@ -82,7 +81,6 @@ export function initializeEmployee(sequelize: Sequelize) {
       employmentEndDate: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       departmentId: {
         type: DataTypes.UUID,
@@ -120,7 +118,7 @@ export function initializeEmployee(sequelize: Sequelize) {
         { name: 'employees_status_idx', fields: ['status'], unique: false },
         { name: 'employees_reportingmanagerid_idx', fields: ['reporting_manager_id'], unique: false },
         { name: 'employees_designationid_idx', fields: ['designation_id'], unique: false },
-        { name: 'employees_departmentid_idx', fields: ['department_id'], unique: false },
+        { name: 'employees_department_status_idx', fields: ['department_id', 'status'], unique: false },
         { name: 'employees_employmentstartdate_idx', fields: ['employment_start_date'], unique: false },
         { name: 'employees_personalemail_idx', fields: ['personal_email'], unique: false },
         { name: 'employees_lastname_idx', fields: ['last_name'], unique: false },

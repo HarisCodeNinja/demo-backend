@@ -428,7 +428,7 @@ const defaultAreaAttendanceSwagger: SwaggerDefinition = {
 					checkInTime: { type: 'string', format: 'date-time', description: 'checkInTime' },
 					checkOutTime: { type: 'string', format: 'date-time', description: 'checkOutTime' },
 					status: { type: 'string', description: 'status' },
-					totalHour: { type: 'string', description: 'totalHours' },
+					totalHour: { type: 'number', description: 'totalHours' },
 					createdAt: { type: 'string', format: 'date-time', description: 'createdAt' },
 					updatedAt: { type: 'string', format: 'date-time', description: 'updatedAt' }
 				},
@@ -463,7 +463,7 @@ const defaultAreaAttendanceSwagger: SwaggerDefinition = {
 					checkInTime: { type: 'string', format: 'date-time', description: 'checkInTime' },
 					checkOutTime: { type: 'string', format: 'date-time', nullable: true, description: 'checkOutTime' },
 					status: { type: 'string', description: 'status' },
-					totalHour: { type: 'string', nullable: true, description: 'totalHours' },
+					totalHour: { type: 'number', nullable: true, description: 'totalHours' },
 					createdAt: { type: 'string', format: 'date-time', description: 'createdAt' },
 					updatedAt: { type: 'string', format: 'date-time', description: 'updatedAt' }
 				}

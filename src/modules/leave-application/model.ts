@@ -45,7 +45,7 @@ export function initializeLeaveApplication(sequelize: Sequelize) {
         defaultValue: DataTypes.NOW,
       },
       numberOfDay: {
-        type: DataTypes.STRING,
+        type: DataTypes.DECIMAL,
         allowNull: false,
       },
       reason: {
@@ -83,6 +83,7 @@ export function initializeLeaveApplication(sequelize: Sequelize) {
         { name: 'leaveapplications_startdate_idx', fields: ['start_date'], unique: false },
         { name: 'leaveapplications_leavetypeid_idx', fields: ['leave_type_id'], unique: false },
         { name: 'leaveapplications_employeeid_idx', fields: ['employee_id'], unique: false },
+        { name: 'leaveapplications_employee_status_idx', fields: ['employee_id', 'status'], unique: false },
         { name: 'u_leaveapplications_leaveapplicationid_pkey', fields: ['leave_application_id'], unique: true },
       ],
       tableName: 'leave_applications',
