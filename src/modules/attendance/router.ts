@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
 import { validateZodSchema } from '../../middleware/zodValidation';
 import { validateAccessToken, requireRoles } from '../../helper/auth';
+import { applyRoleBasedFilter } from '../../middleware/roleBasedFilter';
 import {attendanceQueryValidator, createAttendancePayloadValidator, updateAttendancePayloadValidator, attendanceParamValidator} from './validation';
 import {fetchAttendanceList, addAttendance, editAttendance, updateAttendance, getAttendance, deleteAttendance} from './service';
 import { QueryAttendanceInput } from './types';
@@ -9,10 +10,13 @@ import { QueryAttendanceInput } from './types';
 
 export const AttendanceRoutes = Router();
 
-AttendanceRoutes.get('/', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
+AttendanceRoutes.get('/',
+  validateAccessToken,
+  requireRoles(['user:employee','user:manager','user:hr','user:admin']),
+  applyRoleBasedFilter('team-viewable'), // Middleware handles role-based filtering
   validateZodSchema(attendanceQueryValidator, 'query'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await fetchAttendanceList(req.query as unknown as QueryAttendanceInput);
+    const result = await fetchAttendanceList(req.query as unknown as QueryAttendanceInput, req);
     const status = (result as any).statusCode || 200;
     res.status(status).json(result);
   }),
@@ -61,14 +65,18 @@ AttendanceRoutes.put('/:attendanceId', validateAccessToken, requireRoles(['user:
   }),
 );
 
-AttendanceRoutes.get('/detail/:attendanceId', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
+AttendanceRoutes.get('/detail/:attendanceId',
+  validateAccessToken,
+  requireRoles(['user:employee','user:manager','user:hr','user:admin']),
+  applyRoleBasedFilter('team-viewable'), // Middleware handles role-based filtering
   validateZodSchema(attendanceParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await getAttendance(req.params);
+    const result = await getAttendance(req.params, req);
 
-    if (result.isError) {
-      res.status(404).json(result);
-			return;
+    if (result && 'errorCode' in result) {
+      const status = result.errorCode === 'FORBIDDEN' ? 403 : 404;
+      res.status(status).json(result);
+      return;
     }
 
     const status = (result as any).statusCode || 200;

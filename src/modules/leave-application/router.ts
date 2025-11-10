@@ -12,7 +12,8 @@ export const LeaveApplicationRoutes = Router();
 LeaveApplicationRoutes.get('/', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
   validateZodSchema(leaveApplicationQueryValidator, 'query'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await fetchLeaveApplicationList(req.query as unknown as QueryLeaveApplicationInput);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await fetchLeaveApplicationList(req.query as unknown as QueryLeaveApplicationInput, userContext);
     const status = (result as any).statusCode || 200;
     res.status(status).json(result);
   }),
@@ -30,10 +31,13 @@ LeaveApplicationRoutes.post('/', validateAccessToken, requireRoles(['user:employ
 LeaveApplicationRoutes.get('/:leaveApplicationId', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
   validateZodSchema(leaveApplicationParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await editLeaveApplication(req.params);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await editLeaveApplication(req.params, userContext);
 
     if (result && 'errorCode' in result) {
-      res.status(404).json(result);
+      const status = result.errorCode === 'FORBIDDEN' ? 403 : 404;
+      res.status(status).json(result);
+      return;
     }
 
     const status = (result as any).statusCode || 200;
@@ -49,11 +53,13 @@ LeaveApplicationRoutes.put('/:leaveApplicationId', validateAccessToken, requireR
   validateZodSchema(leaveApplicationParamValidator, 'params'),
   validateUpdateLeaveApplication,
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await updateLeaveApplication(req.params, req.body);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await updateLeaveApplication(req.params, req.body, userContext);
 
-    if (result.isError) {
-      res.status(404).json(result);
-			return;
+    if (result && 'errorCode' in result) {
+      const status = result.errorCode === 'FORBIDDEN' ? 403 : 404;
+      res.status(status).json(result);
+      return;
     }
 
     const status = (result as any).statusCode || 200;
@@ -64,11 +70,13 @@ LeaveApplicationRoutes.put('/:leaveApplicationId', validateAccessToken, requireR
 LeaveApplicationRoutes.get('/detail/:leaveApplicationId', validateAccessToken, requireRoles(['user:employee','user:manager','user:hr','user:admin']),
   validateZodSchema(leaveApplicationParamValidator, 'params'),
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await getLeaveApplication(req.params);
+    const userContext = (req as any).user; // Get user context from JWT token
+    const result = await getLeaveApplication(req.params, userContext);
 
-    if (result.isError) {
-      res.status(404).json(result);
-			return;
+    if (result && 'errorCode' in result) {
+      const status = result.errorCode === 'FORBIDDEN' ? 403 : 404;
+      res.status(status).json(result);
+      return;
     }
 
     const status = (result as any).statusCode || 200;

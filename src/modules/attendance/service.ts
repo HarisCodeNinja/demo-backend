@@ -1,13 +1,21 @@
 import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { Attendance } from './model';
 import { Employee } from '../employee/model';
-
+import { checkAccess, applyRoleFilter } from '../../util/roleFilterHelpers';
 
 import { CreateAttendanceInput, UpdateAttendanceInput, QueryAttendanceInput } from './types';
 
-export const fetchAttendanceList = async (params: QueryAttendanceInput) => {
+export const fetchAttendanceList = async (params: QueryAttendanceInput, req: any) => {
 	const pageSize = Math.min(params.pageSize || 10, 1000);
 	const curPage = params.page || 0;
+
+	// Early return if user has no access
+	if (!checkAccess(req)) {
+		return { data: [], meta: { total: 0, page: curPage, pageSize } };
+	}
+
+	// Build where clause with role-based filtering
+	const whereClause = applyRoleFilter(req);
 
 	const { count, rows } = await Attendance.findAndCountAll({
 		attributes: [
@@ -24,6 +32,7 @@ export const fetchAttendanceList = async (params: QueryAttendanceInput) => {
 			[Sequelize.col('employee.first_name'), 'firstName'],
 			[Sequelize.col('employee.last_name'), 'lastName'],
 		],
+		where: whereClause, // Role-based filtering applied automatically
 		include: [
 			{
 				model: Employee,
@@ -107,8 +116,15 @@ export const updateAttendance = async (params: any, payload: UpdateAttendanceInp
 	};
 };
 
-export const getAttendance = async (params: any): Promise<any> => {
-	let where: any = {};
+export const getAttendance = async (params: any, req: any): Promise<any> => {
+	// Early return if user has no access
+	if (!checkAccess(req)) {
+		return { errorCode: 'FORBIDDEN', message: 'You do not have permission to view this attendance record' };
+	}
+
+	// Build where clause with role-based filtering
+	const roleFilterWhere = applyRoleFilter(req);
+
 	const include: any[] = [
 		{
 			model: Employee,
@@ -133,7 +149,7 @@ export const getAttendance = async (params: any): Promise<any> => {
 		],
 		where: {
 			attendanceId: params.attendanceId,
-			...where,
+			...roleFilterWhere, // Role-based filtering applied
 		},
 		include: [...include],
 	});

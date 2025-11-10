@@ -2,12 +2,82 @@ import { Op, Sequelize, fn, BaseError } from 'sequelize';
 import { LeaveApplication } from './model';
 import { Employee } from '../employee/model';
 import { LeaveType } from '../leave-type/model';
+import { User } from '../user/model';
 
 import { CreateLeaveApplicationInput, UpdateLeaveApplicationInput, QueryLeaveApplicationInput } from './types';
 
-export const fetchLeaveApplicationList = async (params: QueryLeaveApplicationInput) => {
+// Interface for user context from JWT token
+interface UserContext {
+  userId: string;
+  role: string;
+  scope?: string[];
+}
+
+/**
+ * Helper function to build role-based where conditions for leave applications
+ *
+ * @param userContext - The authenticated user's context (userId, role, scope)
+ * @returns Object with employeeIds array that the user is allowed to see
+ */
+const getRoleBasedFilter = async (userContext: UserContext): Promise<{ allowedEmployeeIds: string[] } | null> => {
+  const { userId, role } = userContext;
+
+  // HR and Admin can see all leave applications - no filtering needed
+  if (role === 'hr' || role === 'admin') {
+    return null; // null means no filtering
+  }
+
+  // For employee and manager roles, we need to find their employee record
+  const currentEmployee = await Employee.findOne({
+    where: { userId },
+    attributes: ['employeeId'],
+  });
+
+  if (!currentEmployee) {
+    // If no employee record found, they can't see any leave applications
+    return { allowedEmployeeIds: [] };
+  }
+
+  const currentEmployeeId = currentEmployee.employeeId;
+
+  // For employee role - can only see their own leave applications
+  if (role === 'employee') {
+    return { allowedEmployeeIds: [currentEmployeeId] };
+  }
+
+  // For manager role - can see their own + their team members' leave applications
+  if (role === 'manager') {
+    const teamMembers = await Employee.findAll({
+      where: { reportingManagerId: currentEmployeeId },
+      attributes: ['employeeId'],
+    });
+
+    const teamMemberIds = teamMembers.map((emp) => emp.employeeId);
+    // Include manager's own employeeId + all team members
+    return { allowedEmployeeIds: [currentEmployeeId, ...teamMemberIds] };
+  }
+
+  // Default: no access
+  return { allowedEmployeeIds: [] };
+};
+
+export const fetchLeaveApplicationList = async (params: QueryLeaveApplicationInput, userContext: UserContext) => {
   const pageSize = Math.min(params.pageSize || 10, 1000);
   const curPage = params.page || 0;
+
+  // Apply role-based filtering
+  const roleFilter = await getRoleBasedFilter(userContext);
+  let whereClause: any = {};
+
+  // If roleFilter is not null, apply the employeeId filter
+  if (roleFilter !== null) {
+    if (roleFilter.allowedEmployeeIds.length === 0) {
+      // User has no access to any leave applications
+      return { data: [], meta: { total: 0, page: curPage, pageSize } };
+    }
+    whereClause.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+  }
+  // If roleFilter is null (HR/Admin), no where clause needed - they see all
 
   const { count, rows } = await LeaveApplication.findAndCountAll({
     attributes: [
@@ -27,6 +97,7 @@ export const fetchLeaveApplicationList = async (params: QueryLeaveApplicationInp
       [Sequelize.col('employee.first_name'), 'firstName'],
       [Sequelize.col('employee.last_name'), 'lastName'],
     ],
+    where: whereClause, // Apply role-based filtering here
     include: [
       {
         model: Employee,
@@ -58,9 +129,23 @@ export const addLeaveApplication = async (payload: CreateLeaveApplicationInput):
   return leaveApplication.get({ plain: true });
 };
 
-export const editLeaveApplication = async (params: any): Promise<LeaveApplication | { errorCode: string; message: string }> => {
+export const editLeaveApplication = async (params: any, userContext: UserContext): Promise<LeaveApplication | { errorCode: string; message: string }> => {
   // Initialize filters and include relationships
   let where: any = {};
+
+  // Apply role-based filtering
+  const roleFilter = await getRoleBasedFilter(userContext);
+
+  // If roleFilter is not null, apply the employeeId filter
+  if (roleFilter !== null) {
+    if (roleFilter.allowedEmployeeIds.length === 0) {
+      // User has no access to any leave applications
+      return { errorCode: 'FORBIDDEN', message: 'You do not have permission to view this leave application' };
+    }
+    where.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+  }
+  // If roleFilter is null (HR/Admin), no where clause needed - they see all
+
   const include: any[] = [
     {
       model: Employee,
@@ -98,8 +183,21 @@ export const editLeaveApplication = async (params: any): Promise<LeaveApplicatio
   return leaveApplication.get({ plain: true }) as LeaveApplication;
 };
 
-export const updateLeaveApplication = async (params: any, payload: UpdateLeaveApplicationInput): Promise<any> => {
+export const updateLeaveApplication = async (params: any, payload: UpdateLeaveApplicationInput, userContext: UserContext): Promise<any> => {
   let where: any = {};
+
+  // Apply role-based filtering
+  const roleFilter = await getRoleBasedFilter(userContext);
+
+  // If roleFilter is not null, apply the employeeId filter
+  if (roleFilter !== null) {
+    if (roleFilter.allowedEmployeeIds.length === 0) {
+      // User has no access to any leave applications
+      return { errorCode: 'FORBIDDEN', message: 'You do not have permission to update this leave application' };
+    }
+    where.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+  }
+  // If roleFilter is null (HR/Admin), no where clause needed - they can update all
 
   const leaveApplication = await LeaveApplication.findOne({
     where: {
@@ -120,8 +218,22 @@ export const updateLeaveApplication = async (params: any, payload: UpdateLeaveAp
   };
 };
 
-export const getLeaveApplication = async (params: any): Promise<any> => {
+export const getLeaveApplication = async (params: any, userContext: UserContext): Promise<any> => {
   let where: any = {};
+
+  // Apply role-based filtering
+  const roleFilter = await getRoleBasedFilter(userContext);
+
+  // If roleFilter is not null, apply the employeeId filter
+  if (roleFilter !== null) {
+    if (roleFilter.allowedEmployeeIds.length === 0) {
+      // User has no access to any leave applications
+      return { errorCode: 'FORBIDDEN', message: 'You do not have permission to view this leave application' };
+    }
+    where.employeeId = { [Op.in]: roleFilter.allowedEmployeeIds };
+  }
+  // If roleFilter is null (HR/Admin), no where clause needed - they see all
+
   const include: any[] = [
     {
       model: Employee,
