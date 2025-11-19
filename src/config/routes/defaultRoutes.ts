@@ -32,6 +32,7 @@ import RecruitmentIntelligenceRoutes from '../../modules/hyper/recruitment-intel
 import AttendanceInsightsRoutes from '../../modules/hyper/attendance-insights/router';
 import ConversationalDashboardRoutes from '../../modules/hyper/conversational-dashboard/router';
 import MCPServerRoutes from '../../modules/mcp-server/router';
+import GenaiMCPRoutes from '../../modules/mcp-server/genaiRouter';
 export const defaultRoutes: RouteConfig[] = [
   { path: '/attendances', tags: ['api', 'Attendance'], routes: AttendanceRoutes },
   { path: '/audit-logs', tags: ['api', 'Audit Log'], routes: AuditLogRoutes },
@@ -66,4 +67,5 @@ export const defaultRoutes: RouteConfig[] = [
   { path: '/hyper/attendance', tags: ['api', 'HYPER', 'Attendance Insights'], routes: AttendanceInsightsRoutes },
   { path: '/hyper/dashboard', tags: ['api', 'HYPER', 'Conversational Dashboard'], routes: ConversationalDashboardRoutes },
   { path: '/mcp', tags: ['api', 'MCP', 'Claude AI'], routes: MCPServerRoutes },
+  { path: '/mcp-genai', tags: ['api', 'MCP', 'Google Gemini AI'], routes: GenaiMCPRoutes },
 ];

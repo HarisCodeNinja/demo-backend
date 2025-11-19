@@ -40,6 +40,7 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.69.0",
+        "@google/generative-ai": "^0.24.1",
         "@modelcontextprotocol/sdk": "^1.22.0",
         "@types/nodemailer": "^7.0.1",
         "@types/pdfkit": "^0.17.3",

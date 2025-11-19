@@ -22,8 +22,9 @@ const EnvSchema = z.object({
 
   CORS_ORIGINS: z.string().default(''),
 
-  // Claude AI / MCP Configuration
+  // AI / MCP Configuration
   CLAUDE_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

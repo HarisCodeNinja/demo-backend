@@ -2,11 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
 import { validateAccessToken, requireRoles } from '../../../helper/auth';
 import { validateZodSchema } from '../../../middleware/zodValidation';
-import {
-  employeeLifecycleQuerySchema,
-  departmentChangesQuerySchema,
-  newHiresQuerySchema,
-} from './validation';
+import { employeeLifecycleQuerySchema, departmentChangesQuerySchema, newHiresQuerySchema } from './validation';
 import {
   getMissingDocuments,
   getIncompleteOnboarding,
@@ -32,7 +28,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getMissingDocuments(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -48,7 +44,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getIncompleteOnboarding(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -64,7 +60,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getDepartmentChanges(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -80,7 +76,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getRoleMismatches(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -96,7 +92,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getPendingVerifications(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -112,7 +108,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getNewHiresSummary(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 /**
@@ -128,7 +124,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const result = await getOffboardingChecklist(req, req.query);
     res.status(200).json(result);
-  })
+  }),
 );
 
 export default router;

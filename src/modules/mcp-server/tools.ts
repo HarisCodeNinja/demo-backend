@@ -337,6 +337,42 @@ export const mcpTools: MCPTool[] = [
       required: ['reportType'],
     },
   },
+  {
+    name: 'get_database_schema',
+    description: 'Get compact DB schema: table names, key columns, relationships. Use before SQL queries.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'execute_sql_query',
+    description: 'Execute SELECT query on HRM DB. Secure: SELECT-only, LIMIT 1000, 30s timeout. Use for JOINs, aggregations, skills, salaries, etc.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sqlQuery: {
+          type: 'string',
+          description: 'PostgreSQL SELECT query',
+        },
+      },
+      required: ['sqlQuery'],
+    },
+  },
+  {
+    name: 'get_table_info',
+    description: 'Get table details: columns, types, keys, sample data (3 rows).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tableName: {
+          type: 'string',
+          description: 'Table name',
+        },
+      },
+      required: ['tableName'],
+    },
+  },
 ];
 
 /**

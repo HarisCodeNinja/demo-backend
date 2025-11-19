@@ -2,6 +2,13 @@ import { ToolCallResponse } from './types';
 import { Request } from 'express';
 import { Op } from 'sequelize';
 import { reportGenerator } from './reportGenerator';
+import { genaiReportGenerator } from './genaiReportGenerator';
+import { DynamicSqlExecutor } from './dynamicSqlExecutor';
+import {
+  getIncompleteOnboarding,
+  getMissingDocuments,
+  getPendingVerifications,
+} from '../hyper/employee-lifecycle/service';
 
 // Import models as needed
 import { Employee } from '../employee/model';
@@ -26,7 +33,8 @@ export class ToolExecutor {
   static async execute(
     toolName: string,
     args: any,
-    req: Request
+    req: Request,
+    aiProvider: 'claude' | 'gemini' = 'gemini'
   ): Promise<ToolCallResponse> {
     try {
       switch (toolName) {
@@ -67,10 +75,19 @@ export class ToolExecutor {
           return await this.getEmployeeGoals(args, req);
 
         case 'generate_dynamic_report':
-          return await this.generateDynamicReport(args, req);
+          return await this.generateDynamicReport(args, req, aiProvider);
 
         case 'generate_quick_report':
-          return await this.generateQuickReport(args, req);
+          return await this.generateQuickReport(args, req, aiProvider);
+
+        case 'get_database_schema':
+          return await this.getDatabaseSchema(args, req);
+
+        case 'execute_sql_query':
+          return await this.executeSqlQuery(args, req);
+
+        case 'get_table_info':
+          return await this.getTableInfo(args, req);
 
         default:
           return {
@@ -506,7 +523,6 @@ export class ToolExecutor {
   ): Promise<ToolCallResponse> {
     const { insightType, filters = {} } = args;
 
-    // Map insight types to HYPER endpoints
     const endpointMap: Record<string, string> = {
       missing_documents: '/hyper/employee-lifecycle/missing-documents',
       incomplete_onboarding: '/hyper/employee-lifecycle/incomplete-onboarding',
@@ -516,6 +532,50 @@ export class ToolExecutor {
       pending_feedback: '/hyper/recruitment/pending-feedback',
       quick_stats: '/hyper/dashboard/quick-stats',
     };
+
+    const serviceMap: Record<string, (req: Request, query: any) => Promise<any>> = {
+      missing_documents: getMissingDocuments,
+      incomplete_onboarding: getIncompleteOnboarding,
+      pending_verifications: getPendingVerifications,
+    };
+
+    const handler = serviceMap[insightType];
+
+    if (handler) {
+      try {
+        const safeFilters = filters || {};
+        const result = await handler(req, safeFilters);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  insightType,
+                  filters: safeFilters,
+                  data: result?.data || [],
+                  meta: result?.meta || {},
+                  source: 'HYPER employee lifecycle service',
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Failed to fetch ${insightType} insight: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
 
     const endpoint = endpointMap[insightType];
     if (!endpoint) {
@@ -530,9 +590,6 @@ export class ToolExecutor {
       };
     }
 
-    // Note: In a real implementation, you would import and call the actual
-    // service functions rather than making HTTP calls
-    // For now, return a placeholder
     return {
       content: [
         {
@@ -688,12 +745,15 @@ export class ToolExecutor {
    */
   private static async generateDynamicReport(
     args: any,
-    req: Request
+    req: Request,
+    aiProvider: 'claude' | 'gemini' = 'gemini'
   ): Promise<ToolCallResponse> {
     const { prompt } = args;
 
     try {
-      const report = await reportGenerator.generateReport(prompt, req);
+      // Use appropriate report generator based on AI provider
+      const generator = aiProvider === 'claude' ? reportGenerator : genaiReportGenerator;
+      const report = await generator.generateReport(prompt, req);
 
       // Convert PDF buffer to base64 for transmission
       const pdfBase64 = report.pdf.toString('base64');
@@ -746,12 +806,15 @@ export class ToolExecutor {
    */
   private static async generateQuickReport(
     args: any,
-    req: Request
+    req: Request,
+    aiProvider: 'claude' | 'gemini' = 'gemini'
   ): Promise<ToolCallResponse> {
     const { reportType, filters = {} } = args;
 
     try {
-      const report = await reportGenerator.generateQuickReport(reportType, filters, req);
+      // Use appropriate report generator based on AI provider
+      const generator = aiProvider === 'claude' ? reportGenerator : genaiReportGenerator;
+      const report = await generator.generateQuickReport(reportType, filters, req);
 
       // Convert PDF buffer to base64
       const pdfBase64 = report.pdf.toString('base64');
@@ -787,6 +850,143 @@ export class ToolExecutor {
           {
             type: 'text',
             text: `Failed to generate quick report: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Get database schema (optimized - returns compact schema)
+   */
+  private static async getDatabaseSchema(
+    args: any,
+    req: Request
+  ): Promise<ToolCallResponse> {
+    try {
+      // Use compact schema to reduce token usage
+      const schema = await DynamicSqlExecutor.getDatabaseSchemaCompact();
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: 'Compact schema retrieved (optimized for performance)',
+                schema,
+                hint: 'Use get_table_info for detailed column information on specific tables',
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to get database schema: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Execute SQL query
+   */
+  private static async executeSqlQuery(
+    args: any,
+    req: Request
+  ): Promise<ToolCallResponse> {
+    const { sqlQuery } = args;
+
+    try {
+      const result = await DynamicSqlExecutor.executeDynamicQuery(sqlQuery, req);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: [
+              'SUCCESS: SQL query executed successfully.',
+              result.formattedResult.summary,
+              `Rows returned: ${result.rowCount}`,
+              `Execution time: ${result.executionTime}ms`,
+              result.formattedResult.columns.length
+                ? `Columns: ${result.formattedResult.columns.join(', ')}`
+                : 'Columns: Not available',
+              '',
+              result.formattedResult.markdownTable,
+              '',
+              'JSON preview:',
+              '```json',
+              JSON.stringify(
+                result.data.slice(
+                  0,
+                  Math.max(result.formattedResult.previewRowCount, 5)
+                ),
+                null,
+                2
+              ),
+              '```',
+            ].join('\n'),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to execute SQL query: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  /**
+   * Get table info
+   */
+  private static async getTableInfo(
+    args: any,
+    req: Request
+  ): Promise<ToolCallResponse> {
+    const { tableName } = args;
+
+    try {
+      const tableInfo = await DynamicSqlExecutor.getTableInfo(tableName);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Table information retrieved for ${tableName}`,
+                tableInfo,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to get table info: ${error.message}`,
           },
         ],
         isError: true,
