@@ -48,6 +48,12 @@ export class GenaiService {
     // Select only relevant tools based on query (reduces token usage by 40-60%)
     const relevantTools = selectRelevantTools(message);
 
+    // Get current date for relative date calculations
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentYear = now.getFullYear();
+    const currentMonth = now.toLocaleString('default', { month: 'long' });
+
     // For Gemini 2.5, we need to create a new model instance with system instruction
     const modelWithSystem = this.client.getGenerativeModel({
       model: this.defaultModel,
@@ -58,6 +64,8 @@ export class GenaiService {
       systemInstruction: {
         parts: [{
           text: `You are a proactive HRM AI assistant. Always take action first, don't ask for clarification unless absolutely necessary.
+
+IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations (last week, this month, Q4 2025, etc.).
 
 Action Rules:
 1. If no IDs/filters specified → fetch ALL data (use empty filters or omit parameters)

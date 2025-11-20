@@ -45,8 +45,16 @@ export class ClaudeService {
     // Select only relevant tools based on query (reduces token usage by 40-60%)
     const relevantTools = selectRelevantTools(message);
 
+    // Get current date for relative date calculations
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentYear = now.getFullYear();
+    const currentMonth = now.toLocaleString('default', { month: 'long' });
+
     // System prompt for HRM context
     const systemPrompt = `You are an AI assistant integrated with an HRM (Human Resource Management) system.
+
+IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations (last week, this month, Q4 2025, etc.).
 You have access to various tools that allow you to query and interact with employee data, attendance records,
 leave applications, recruitment information, performance reviews, and more.
 

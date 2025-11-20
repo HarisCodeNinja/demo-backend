@@ -190,10 +190,10 @@ export class MCPController {
   /**
    * Chat with Claude AI
    * Main endpoint for conversational interactions
+   * Supports typeOfResponse: 'json' (default), 'md', 'pdf'
    */
   static chat = asyncHandler(async (req: Request, res: Response) => {
-    const validatedData = ChatRequestSchema.parse(req.body);
-    const { message, conversationHistory = [], useTools = true } = validatedData;
+    const { message, conversationHistory = [], useTools = true, typeOfResponse = 'json' } = req.body;
 
     const result = await claudeService.chat(
       message,
@@ -202,14 +202,60 @@ export class MCPController {
       req
     );
 
-    res.json({
-      status: 'success',
-      data: {
-        response: result.response,
-        toolCalls: result.toolCalls,
-        usage: result.usage,
-      },
-    });
+    // If exactly one tool was called, return its raw data (like HYPER endpoints)
+    // This gives structured data instead of AI's text summary
+    const shouldReturnRawData = result.toolCalls.length === 1 && typeOfResponse.toLowerCase() === 'json';
+
+    if (shouldReturnRawData) {
+      const toolResult = result.toolCalls[0].result;
+
+      // Extract the actual data from the tool result
+      if (toolResult.content && toolResult.content[0] && toolResult.content[0].text) {
+        try {
+          const parsedData = JSON.parse(toolResult.content[0].text);
+
+          // Ensure meta field is always present with meaningful message
+          if (!parsedData.meta) {
+            parsedData.meta = {
+              message: result.response || `Query results retrieved successfully`,
+            };
+          }
+
+          // Return raw structured data like HYPER endpoints (with data and meta)
+          res.json(parsedData);
+          return;
+        } catch {
+          // If not valid JSON, fall through to text response
+        }
+      }
+    }
+
+    // Format response based on typeOfResponse (like HYPER modules - clean responses)
+    switch (typeOfResponse.toLowerCase()) {
+      case 'md':
+      case 'markdown':
+        // Return markdown formatted response
+        res.setHeader('Content-Type', 'text/markdown');
+        res.send(result.response);
+        break;
+
+      case 'pdf':
+        // For PDF, we'd need to generate it from the response
+        // For now, return JSON with PDF generation instructions
+        res.json({
+          message: 'PDF generation requires using generate_dynamic_report or generate_quick_report tools',
+          response: result.response,
+        });
+        break;
+
+      case 'json':
+      default:
+        // Return AI's text response
+        res.json({
+          data: result.response,
+        });
+        break;
+    }
   });
 
   /**

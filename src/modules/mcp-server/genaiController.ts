@@ -191,22 +191,64 @@ export class GenaiController {
   /**
    * Chat with Gemini AI
    * Main endpoint for conversational interactions
+   * Supports typeOfResponse: 'json' (default), 'md', 'pdf'
    */
   static chat = asyncHandler(async (req: Request, res: Response) => {
-    const validatedData = ChatRequestSchema.parse(req.body);
-    const { message, conversationHistory = [], useTools = true } = validatedData;
+    const { message, conversationHistory = [], useTools = true, typeOfResponse = 'json' } = req.body;
 
     const result = await genaiService.chat(message, conversationHistory, useTools, req);
 
-    res.json({
-      status: 'success',
-      data: {
-        response: result.response,
-        toolCalls: result.toolCalls,
-        usage: result.usage,
-        aiProvider: 'Google Gemini',
-      },
-    });
+    // If exactly one tool was called, return its raw data (like HYPER endpoints)
+    // This gives structured data instead of AI's text summary
+    const shouldReturnRawData = result.toolCalls.length === 1 && typeOfResponse.toLowerCase() === 'json';
+
+    if (shouldReturnRawData) {
+      const toolResult = result.toolCalls[0].result;
+
+      // Extract the actual data from the tool result
+      if (toolResult.content && toolResult.content[0] && toolResult.content[0].text) {
+        try {
+          const parsedData = JSON.parse(toolResult.content[0].text);
+
+          // Ensure meta field is always present with meaningful message
+          if (!parsedData.meta) {
+            parsedData.meta = {
+              message: result.response || `Query results retrieved successfully`,
+            };
+          }
+
+          // Return raw structured data like HYPER endpoints (with data and meta)
+          res.json(parsedData);
+          return;
+        } catch {
+          // If not valid JSON, fall through to text response
+        }
+      }
+    }
+
+    // Format response based on typeOfResponse
+    switch (typeOfResponse.toLowerCase()) {
+      case 'md':
+      case 'markdown':
+        res.setHeader('Content-Type', 'text/markdown');
+        res.send(result.response);
+        break;
+
+      case 'pdf':
+        res.json({
+          message: 'PDF generation requires using generate_dynamic_report or generate_quick_report tools',
+          response: result.response,
+        });
+        break;
+
+      case 'json':
+      default:
+        // Return AI's text response
+        res.json({
+          data: result.response,
+        });
+        break;
+    }
   });
 
   /**
