@@ -198,31 +198,64 @@ export class GenaiController {
 
     const result = await genaiService.chat(message, conversationHistory, useTools, req);
 
-    // If exactly one tool was called, return its raw data (like HYPER endpoints)
-    // This gives structured data instead of AI's text summary
-    const shouldReturnRawData = result.toolCalls.length === 1 && typeOfResponse.toLowerCase() === 'json';
+    // If tool(s) were called, try to return structured data instead of AI's text summary
+    const shouldReturnRawData = result.toolCalls.length > 0 && typeOfResponse.toLowerCase() === 'json';
 
     if (shouldReturnRawData) {
-      const toolResult = result.toolCalls[0].result;
+      try {
+        // Single tool call - return its data directly
+        if (result.toolCalls.length === 1) {
+          const toolResult = result.toolCalls[0].result;
 
-      // Extract the actual data from the tool result
-      if (toolResult.content && toolResult.content[0] && toolResult.content[0].text) {
-        try {
-          const parsedData = JSON.parse(toolResult.content[0].text);
+          if (toolResult.content && toolResult.content[0] && toolResult.content[0].text) {
+            const parsedData = JSON.parse(toolResult.content[0].text);
 
-          // Ensure meta field is always present with meaningful message
-          if (!parsedData.meta) {
-            parsedData.meta = {
-              message: result.response || `Query results retrieved successfully`,
-            };
+            // Ensure meta field is always present
+            if (!parsedData.meta) {
+              parsedData.meta = {
+                message: result.response || `Query results retrieved successfully`,
+              };
+            }
+
+            res.json(parsedData);
+            return;
+          }
+        }
+
+        // Multiple tool calls - combine their results
+        if (result.toolCalls.length > 1) {
+          const combinedData: any = {};
+          const toolMessages: string[] = [];
+
+          for (const toolCall of result.toolCalls) {
+            if (toolCall.result.content && toolCall.result.content[0] && toolCall.result.content[0].text) {
+              const parsed = JSON.parse(toolCall.result.content[0].text);
+
+              // Merge data from each tool
+              if (parsed.data) {
+                Object.assign(combinedData, parsed.data);
+              }
+
+              // Collect messages
+              if (parsed.meta && parsed.meta.message) {
+                toolMessages.push(parsed.meta.message);
+              }
+            }
           }
 
-          // Return raw structured data like HYPER endpoints (with data and meta)
-          res.json(parsedData);
+          // Return combined structured data
+          res.json({
+            data: combinedData,
+            meta: {
+              message: result.response || toolMessages.join('; '),
+              timestamp: new Date().toISOString(),
+              toolsCalled: result.toolCalls.length,
+            },
+          });
           return;
-        } catch {
-          // If not valid JSON, fall through to text response
         }
+      } catch {
+        // If parsing fails, fall through to text response
       }
     }
 

@@ -28,6 +28,31 @@ import { Goal } from '../goal/model';
  */
 export class ToolExecutor {
   /**
+   * Create standardized response format with data and meta
+   */
+  private static createResponse(data: any, message: string, additionalMeta?: any): ToolCallResponse {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              data,
+              meta: {
+                message,
+                timestamp: new Date().toISOString(),
+                ...additionalMeta,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  /**
    * Execute a tool with given arguments
    */
   static async execute(
@@ -169,19 +194,16 @@ export class ToolExecutor {
       });
     }
 
-    const result = {
+    const data = {
       employee: employee.toJSON(),
       attendance: attendanceData ? attendanceData.map((a) => a.toJSON()) : null,
     };
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
+    const message = attendanceData
+      ? `Retrieved employee ${employee.firstName} ${employee.lastName} with ${attendanceData.length} attendance records (last 30 days)`
+      : `Retrieved employee ${employee.firstName} ${employee.lastName}`;
+
+    return this.createResponse(data, message);
   }
 
   /**
@@ -206,22 +228,14 @@ export class ToolExecutor {
       order: [['firstName', 'ASC']],
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              departmentId,
-              count: employees.length,
-              employees: employees.map((e) => e.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      departmentId,
+      employees: employees.map((e) => e.toJSON()),
     };
+
+    const message = `Found ${employees.length} employee${employees.length !== 1 ? 's' : ''} in the department`;
+
+    return this.createResponse(data, message, { count: employees.length });
   }
 
   /**
@@ -256,22 +270,14 @@ export class ToolExecutor {
       limit,
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              query,
-              count: employees.length,
-              employees: employees.map((e) => e.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      query,
+      employees: employees.map((e) => e.toJSON()),
     };
+
+    const message = `Found ${employees.length} employee${employees.length !== 1 ? 's' : ''} matching "${query}"`;
+
+    return this.createResponse(data, message, { count: employees.length });
   }
 
   /**
@@ -312,23 +318,24 @@ export class ToolExecutor {
       ],
     });
 
-    const summary = {
+    const presentCount = attendanceRecords.filter((a) => a.status === 'present').length;
+    const absentCount = attendanceRecords.filter((a) => a.status === 'absent').length;
+    const lateCount = attendanceRecords.filter((a) => a.status === 'late').length;
+    const onLeaveCount = attendanceRecords.filter((a) => a.status === 'on_leave').length;
+
+    const data = {
       totalRecords: attendanceRecords.length,
-      present: attendanceRecords.filter((a) => a.status === 'present').length,
-      absent: attendanceRecords.filter((a) => a.status === 'absent').length,
-      late: attendanceRecords.filter((a) => a.status === 'late').length,
-      onLeave: attendanceRecords.filter((a) => a.status === 'on_leave').length,
+      present: presentCount,
+      absent: absentCount,
+      late: lateCount,
+      onLeave: onLeaveCount,
       records: attendanceRecords.map((a) => a.toJSON()),
     };
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(summary, null, 2),
-        },
-      ],
-    };
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    const message = `Attendance summary for ${formatDate(new Date(startDate))} to ${formatDate(new Date(endDate))}: ${attendanceRecords.length} total record${attendanceRecords.length !== 1 ? 's' : ''}, ${presentCount} present, ${absentCount} absent, ${lateCount} late, ${onLeaveCount} on leave`;
+
+    return this.createResponse(data, message);
   }
 
   /**
@@ -362,21 +369,14 @@ export class ToolExecutor {
       order: [['createdAt', 'DESC']],
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              count: leaveRequests.length,
-              leaveRequests: leaveRequests.map((l) => l.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      leaveRequests: leaveRequests.map((l) => l.toJSON()),
     };
+
+    const statusText = status ? ` with status "${status}"` : '';
+    const message = `Found ${leaveRequests.length} leave request${leaveRequests.length !== 1 ? 's' : ''}${statusText}`;
+
+    return this.createResponse(data, message, { count: leaveRequests.length });
   }
 
   /**
@@ -399,29 +399,27 @@ export class ToolExecutor {
       ],
     });
 
-    const result: any = {
-      count: jobOpenings.length,
-      jobOpenings: jobOpenings.map((j) => j.toJSON()),
-    };
+    const jobOpeningsList = jobOpenings.map((j) => j.toJSON());
 
     if (includeApplications) {
       // Add candidate counts for each job opening
-      for (const job of result.jobOpenings) {
+      for (const job of jobOpeningsList) {
         const candidateCount = await Candidate.count({
           where: { jobOpeningId: job.jobOpeningId },
         });
-        job.candidateCount = candidateCount;
+        (job as any).candidateCount = candidateCount;
       }
     }
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+    const data = {
+      jobOpenings: jobOpeningsList,
     };
+
+    const statusText = status ? ` with status "${status}"` : '';
+    const applicationsText = includeApplications ? ' with application counts' : '';
+    const message = `Found ${jobOpenings.length} job opening${jobOpenings.length !== 1 ? 's' : ''}${statusText}${applicationsText}`;
+
+    return this.createResponse(data, message, { count: jobOpenings.length });
   }
 
   /**
@@ -450,21 +448,14 @@ export class ToolExecutor {
       order: [['createdAt', 'DESC']],
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              count: candidates.length,
-              candidates: candidates.map((c) => c.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      candidates: candidates.map((c) => c.toJSON()),
     };
+
+    const statusText = status ? ` with status "${status}"` : '';
+    const message = `Found ${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}${statusText}`;
+
+    return this.createResponse(data, message, { count: candidates.length });
   }
 
   /**
@@ -496,21 +487,15 @@ export class ToolExecutor {
       order: [['createdAt', 'DESC']],
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              count: reviews.length,
-              reviews: reviews.map((r) => r.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      reviews: reviews.map((r) => r.toJSON()),
     };
+
+    const periodText = reviewPeriod ? ` for period "${reviewPeriod}"` : '';
+    const statusText = status ? ` with status "${status}"` : '';
+    const message = `Found ${reviews.length} performance review${reviews.length !== 1 ? 's' : ''}${periodText}${statusText}`;
+
+    return this.createResponse(data, message, { count: reviews.length });
   }
 
   /**
@@ -622,10 +607,10 @@ export class ToolExecutor {
       order: [['departmentName', 'ASC']],
     });
 
-    const result = departments.map((d) => d.toJSON());
+    const departmentsList = departments.map((d) => d.toJSON());
 
     if (includeEmployeeCount) {
-      for (const dept of result) {
+      for (const dept of departmentsList) {
         const count = await Employee.count({
           where: { departmentId: dept.departmentId },
         });
@@ -633,21 +618,14 @@ export class ToolExecutor {
       }
     }
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              count: departments.length,
-              departments: result,
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      departments: departmentsList,
     };
+
+    const countsText = includeEmployeeCount ? ' with employee counts' : '';
+    const message = `Found ${departments.length} department${departments.length !== 1 ? 's' : ''}${countsText}`;
+
+    return this.createResponse(data, message, { count: departments.length });
   }
 
   /**
@@ -669,22 +647,14 @@ export class ToolExecutor {
         status: 'pending',
       });
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                leaveRequest: leaveRequest.toJSON(),
-                message: 'Leave request created successfully',
-              },
-              null,
-              2
-            ),
-          },
-        ],
+      const data = {
+        leaveRequest: leaveRequest.toJSON(),
       };
+
+      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+      const message = `Leave request created successfully for ${formatDate(new Date(startDate))} to ${formatDate(new Date(endDate))}`;
+
+      return this.createResponse(data, message);
     } catch (error: any) {
       return {
         content: [
@@ -722,22 +692,15 @@ export class ToolExecutor {
       order: [['createdAt', 'DESC']],
     });
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              employeeId,
-              count: goals.length,
-              goals: goals.map((g) => g.toJSON()),
-            },
-            null,
-            2
-          ),
-        },
-      ],
+    const data = {
+      employeeId,
+      goals: goals.map((g) => g.toJSON()),
     };
+
+    const statusText = status ? ` with status "${status}"` : '';
+    const message = `Found ${goals.length} goal${goals.length !== 1 ? 's' : ''} for employee${statusText}`;
+
+    return this.createResponse(data, message, { count: goals.length });
   }
 
   /**
@@ -868,23 +831,14 @@ export class ToolExecutor {
       // Use compact schema to reduce token usage
       const schema = await DynamicSqlExecutor.getDatabaseSchemaCompact();
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: 'Compact schema retrieved (optimized for performance)',
-                schema,
-                hint: 'Use get_table_info for detailed column information on specific tables',
-              },
-              null,
-              2
-            ),
-          },
-        ],
+      const data = {
+        schema,
+        hint: 'Use get_table_info for detailed column information on specific tables',
       };
+
+      const message = `Database schema retrieved: ${schema.tables.length} table${schema.tables.length !== 1 ? 's' : ''} with key columns and relationships`;
+
+      return this.createResponse(data, message);
     } catch (error: any) {
       return {
         content: [
@@ -965,22 +919,16 @@ export class ToolExecutor {
     try {
       const tableInfo = await DynamicSqlExecutor.getTableInfo(tableName);
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Table information retrieved for ${tableName}`,
-                tableInfo,
-              },
-              null,
-              2
-            ),
-          },
-        ],
+      const data = {
+        tableName,
+        tableInfo,
       };
+
+      const columnCount = tableInfo.columns?.length || 0;
+      const sampleCount = tableInfo.sampleData?.length || 0;
+      const message = `Table information for "${tableName}": ${columnCount} column${columnCount !== 1 ? 's' : ''}, ${sampleCount} sample row${sampleCount !== 1 ? 's' : ''}`;
+
+      return this.createResponse(data, message);
     } catch (error: any) {
       return {
         content: [
