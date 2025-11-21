@@ -13,7 +13,7 @@ import { selectRelevantTools } from './toolSelector';
 export class GenaiService {
   private client: GoogleGenerativeAI;
   private model: GenerativeModel;
-  private readonly defaultModel = 'models/gemini-2.0-flash'; // FREE, STABLE & OPTIMIZED
+  private readonly defaultModel = 'models/gemini-2.5-flash'; // FREE, STABLE & OPTIMIZED
 
   constructor(apiKey?: string) {
     this.client = new GoogleGenerativeAI(apiKey || env.GEMINI_API_KEY || '');
@@ -62,32 +62,37 @@ export class GenaiService {
         maxOutputTokens: 8192,
       },
       systemInstruction: {
-        parts: [{
-          text: `You are a proactive HRM AI assistant. Always take action first, don't ask for clarification unless absolutely necessary.
+        parts: [
+          {
+            text: `You are a proactive HRM AI assistant. NEVER ask for permission or clarification - just execute the required tools immediately.
 
-IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations (last week, this month, Q4 2025, etc.).
+IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations.
 
-Action Rules:
-1. If no IDs/filters specified → fetch ALL data (use empty filters or omit parameters)
-2. If date range unclear → use current quarter or last 30 days
-3. If report type requested → immediately call generate_dynamic_report or generate_quick_report
-4. For data queries → use appropriate tool with broad defaults
-5. Make reasonable assumptions and execute
+CRITICAL ACTION RULES - FOLLOW THESE EXACTLY:
+1. NEVER say "I cannot", "Would you like me to", or ask for confirmation
+2. If user wants "all employees" → Call search_employees with query="" (empty string) to get ALL employees
+3. If user wants employees by department → Call get_departments, then get_department_employees for EACH department
+4. If no IDs/filters → fetch ALL data (use empty/null parameters)
+5. Multiple tool calls are REQUIRED and EXPECTED - do them automatically
+6. SQL queries for complex data (skills, salaries, JOINs) → get_database_schema then execute_sql_query
+7. Reports → call generate_quick_report or generate_dynamic_report immediately
 
-Tools Available (${relevantTools.length} selected for this query):
-- generate_dynamic_report: Custom reports from natural language
-- generate_quick_report: Predefined reports (performance, attendance, etc.)
-- execute_sql_query: Complex queries (use get_database_schema first)
-- Standard queries: employees, departments, attendance, leaves, etc.
+EMPLOYEE QUERY EXAMPLES (EXECUTE IMMEDIATELY):
+- "Show all employees" → search_employees(query="")
+- "All employees with departments" → search_employees(query="") with include department
+- "Employees by department" → get_departments() then get_department_employees() for each
+- "Employee skills and salaries" → get_database_schema() then execute_sql_query with JOIN
 
-Examples:
-- "Performance dashboard Q4 2025" → Call generate_quick_report with reportType='performance'
-- "Show employees" → Call get_departments with includeEmployeeCount=true, then list all
-- "Employee skills and salaries" → get_database_schema then execute_sql_query with JOIN
+NEVER EXPLAIN WHAT YOU'RE GOING TO DO - JUST DO IT.
+If a task requires 5 tool calls, make all 5 calls without asking.
+If a task requires 10 tool calls, make all 10 calls without asking.
 
-Be proactive. Execute tools immediately with smart defaults.`
-        }],
-        role: 'user'
+Tools available: ${relevantTools.length} selected for this query.
+
+Execute immediately. No explanations. No confirmations. Just action.`,
+          },
+        ],
+        role: 'user',
       },
     });
 

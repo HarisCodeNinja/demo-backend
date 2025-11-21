@@ -45,13 +45,14 @@ export const mcpTools: MCPTool[] = [
   },
   {
     name: 'search_employees',
-    description: 'Search for employees by name, email, department, or designation. Supports partial matching.',
+    description: 'Search employees by name/email OR get ALL employees if query is empty. Use query="" to get all employees (up to 1000). Includes department, designation, location.',
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Search query (name, email, etc.)',
+          description: 'Search query (name, email). Use empty string "" to get ALL employees.',
+          default: '',
         },
         filters: {
           type: 'object',
@@ -64,11 +65,10 @@ export const mcpTools: MCPTool[] = [
         },
         limit: {
           type: 'number',
-          description: 'Maximum number of results',
-          default: 10,
+          description: 'Max results (default 10 for search, 1000 for all)',
         },
       },
-      required: ['query'],
+      required: [],
     },
   },
   {

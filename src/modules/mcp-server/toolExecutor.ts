@@ -245,15 +245,21 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { query, filters, limit = 10 } = args;
+    const { query = '', filters, limit } = args;
 
-    const whereClause: any = {
-      [Op.or]: [
+    // If query is empty and no limit specified, get ALL employees
+    const effectiveLimit = query === '' && !limit ? 1000 : (limit || 10);
+
+    const whereClause: any = {};
+
+    // Only apply text search if query is provided
+    if (query && query.trim() !== '') {
+      whereClause[Op.or] = [
         { firstName: { [Op.iLike]: `%${query}%` } },
         { lastName: { [Op.iLike]: `%${query}%` } },
         { email: { [Op.iLike]: `%${query}%` } },
-      ],
-    };
+      ];
+    }
 
     if (filters) {
       if (filters.departmentId) whereClause.departmentId = filters.departmentId;
@@ -266,8 +272,10 @@ export class ToolExecutor {
       include: [
         { model: Department, as: 'department' },
         { model: Designation, as: 'designation' },
+        { model: Location, as: 'location' },
       ],
-      limit,
+      limit: effectiveLimit,
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']],
     });
 
     const data = {

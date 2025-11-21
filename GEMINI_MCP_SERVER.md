@@ -23,14 +23,14 @@ Both implementations are **completely independent** and can be used simultaneous
 
 ### When to Use Each
 
-| Use Case | Recommended AI |
-|----------|---------------|
-| Testing & Development | **Gemini** (FREE) |
-| Production with budget constraints | **Gemini** (FREE) |
-| Maximum quality needed | Claude (Paid) |
-| Complex analysis | Claude (Paid) |
-| High volume (>60 req/min) | Claude (Paid) |
-| General HR operations | **Both work great!** |
+| Use Case                           | Recommended AI       |
+| ---------------------------------- | -------------------- |
+| Testing & Development              | **Gemini** (FREE)    |
+| Production with budget constraints | **Gemini** (FREE)    |
+| Maximum quality needed             | Claude (Paid)        |
+| Complex analysis                   | Claude (Paid)        |
+| High volume (>60 req/min)          | Claude (Paid)        |
+| General HR operations              | **Both work great!** |
 
 ---
 
@@ -61,6 +61,7 @@ curl http://localhost:8000/mcp-genai/status
 ```
 
 Expected response:
+
 ```json
 {
   "status": "success",
@@ -78,6 +79,7 @@ Expected response:
 ## 📍 Endpoints Comparison
 
 ### Claude Endpoints (`/mcp`)
+
 ```
 GET  /mcp/status
 GET  /mcp/capabilities
@@ -88,6 +90,7 @@ GET  /mcp/models
 ```
 
 ### Gemini Endpoints (`/mcp-genai`)
+
 ```
 GET  /mcp-genai/status
 GET  /mcp-genai/capabilities
@@ -113,11 +116,13 @@ curl -X POST http://localhost:8000/mcp-genai/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "How many employees are in Engineering?",
-    "useTools": true
+    "useTools": true,
+    "typeOfResponse": "markdown" // Can be markdown | json | pdf
   }'
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -169,7 +174,7 @@ const AI_PROVIDER = process.env.NEXT_PUBLIC_AI_PROVIDER || 'gemini'; // or 'clau
 
 const MCP_BASE_URL = {
   claude: '/mcp',
-  gemini: '/mcp-genai'
+  gemini: '/mcp-genai',
 };
 
 // Use it in your API calls
@@ -179,7 +184,7 @@ async function chatWithAI(message: string) {
   const response = await fetch(`${basePath}/chat`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ message, useTools: true }),
@@ -215,20 +220,20 @@ function HRChatBot() {
 
 ## 📊 Feature Comparison
 
-| Feature | Claude (`/mcp`) | Gemini (`/mcp-genai`) |
-|---------|----------------|---------------------|
-| **Chat Interface** | ✅ Yes | ✅ Yes |
-| **14 HRM Tools** | ✅ Yes | ✅ Yes |
-| **Dynamic Reports** | ✅ Yes | ✅ Yes |
-| **Quick Reports** | ✅ Yes | ✅ Yes |
-| **PDF Generation** | ✅ Yes | ✅ Yes |
-| **Markdown Output** | ✅ Yes | ✅ Yes |
-| **JSON Output** | ✅ Yes | ✅ Yes |
-| **Streaming** | ✅ Yes | ✅ Yes |
-| **Cost** | 💰 Paid | 🆓 FREE |
-| **Quality** | Excellent | Very Good |
-| **Speed** | Fast | Very Fast |
-| **Free Tier** | ❌ No | ✅ Yes (60/min) |
+| Feature             | Claude (`/mcp`) | Gemini (`/mcp-genai`) |
+| ------------------- | --------------- | --------------------- |
+| **Chat Interface**  | ✅ Yes          | ✅ Yes                |
+| **14 HRM Tools**    | ✅ Yes          | ✅ Yes                |
+| **Dynamic Reports** | ✅ Yes          | ✅ Yes                |
+| **Quick Reports**   | ✅ Yes          | ✅ Yes                |
+| **PDF Generation**  | ✅ Yes          | ✅ Yes                |
+| **Markdown Output** | ✅ Yes          | ✅ Yes                |
+| **JSON Output**     | ✅ Yes          | ✅ Yes                |
+| **Streaming**       | ✅ Yes          | ✅ Yes                |
+| **Cost**            | 💰 Paid         | 🆓 FREE               |
+| **Quality**         | Excellent       | Very Good             |
+| **Speed**           | Fast            | Very Fast             |
+| **Free Tier**       | ❌ No           | ✅ Yes (60/min)       |
 
 ---
 
@@ -285,9 +290,10 @@ const provider = shouldUseClaude ? 'claude' : 'gemini';
 
 ```typescript
 // Development: Always use Gemini (FREE)
-const AI_PROVIDER = process.env.NODE_ENV === 'development'
-  ? 'gemini'  // FREE during dev!
-  : 'claude'; // Paid in production
+const AI_PROVIDER =
+  process.env.NODE_ENV === 'development'
+    ? 'gemini' // FREE during dev!
+    : 'claude'; // Paid in production
 
 function devChat(message: string) {
   return fetch(`/mcp-${AI_PROVIDER === 'gemini' ? 'genai' : ''}/chat`, {
@@ -320,15 +326,15 @@ async function generateMonthlyReport() {
   const response = await fetch('/mcp-genai/generate-quick-report', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       reportType: 'attendance',
       filters: {
         startDate: '2025-01-01',
-        endDate: '2025-01-31'
-      }
+        endDate: '2025-01-31',
+      },
     }),
   });
 
@@ -373,6 +379,7 @@ GEMINI_API_KEY=AIzaSy...your-key-here
 ### Issue: "Gemini API error"
 
 **Solution:**
+
 1. Check API key in `.env`
 2. Verify key at https://aistudio.google.com
 3. Ensure key starts with `AIzaSy`
@@ -381,6 +388,7 @@ GEMINI_API_KEY=AIzaSy...your-key-here
 ### Issue: "Rate limit exceeded"
 
 **Solution:**
+
 - Free tier: 60 requests/minute
 - Implement request throttling
 - Or upgrade to paid tier
@@ -389,6 +397,7 @@ GEMINI_API_KEY=AIzaSy...your-key-here
 ### Issue: "Which provider should I use?"
 
 **Answer:**
+
 - **Start with Gemini** - it's FREE and works great!
 - **Use Claude** only if you need maximum quality
 - **Both** work identically with same tools
@@ -416,7 +425,7 @@ export function useAIChat(provider: AIProvider = 'gemini') {
       const response = await fetch(`${basePath}/chat`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getToken()}`,
+          Authorization: `Bearer ${getToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -427,11 +436,7 @@ export function useAIChat(provider: AIProvider = 'gemini') {
       });
 
       const data = await response.json();
-      setMessages([
-        ...messages,
-        { role: 'user', content: message },
-        { role: 'assistant', content: data.data.response }
-      ]);
+      setMessages([...messages, { role: 'user', content: message }, { role: 'assistant', content: data.data.response }]);
     } finally {
       setLoading(false);
     }
@@ -487,14 +492,14 @@ function AIChat() {
 
 Based on typical HRM queries:
 
-| Metric | Claude | Gemini |
-|--------|--------|--------|
-| **Response Time** | 2-4 sec | 1-3 sec |
-| **Quality** | Excellent (9/10) | Very Good (8/10) |
-| **Tool Accuracy** | 95% | 92% |
-| **Report Quality** | Excellent | Very Good |
-| **Cost per 1000 requests** | $15-30 | **$0** |
-| **Free Tier** | None | 1,500/day |
+| Metric                     | Claude           | Gemini           |
+| -------------------------- | ---------------- | ---------------- |
+| **Response Time**          | 2-4 sec          | 1-3 sec          |
+| **Quality**                | Excellent (9/10) | Very Good (8/10) |
+| **Tool Accuracy**          | 95%              | 92%              |
+| **Report Quality**         | Excellent        | Very Good        |
+| **Cost per 1000 requests** | $15-30           | **$0**           |
+| **Free Tier**              | None             | 1,500/day        |
 
 **Verdict: Gemini is perfect for most use cases and it's FREE!**
 
@@ -503,17 +508,20 @@ Based on typical HRM queries:
 ## 🎓 Learning Path
 
 ### Week 1: Start with Gemini
+
 - Use Gemini for all development
 - Learn the API patterns
 - Build your features
 - **Cost: $0**
 
 ### Week 2: Test Both
+
 - Try Claude for comparison
 - Notice quality differences
 - Decide what matters for your use case
 
 ### Week 3: Optimize
+
 - Use Gemini for 90% of requests (FREE)
 - Use Claude for critical operations (Paid)
 - Implement smart routing
@@ -551,6 +559,7 @@ You now have:
 2. **Google Gemini** at `/mcp-genai` (**FREE**, Great Quality)
 
 Both:
+
 - ✅ Work independently
 - ✅ Use same tools (14 HRM tools)
 - ✅ Generate reports (JSON, MD, PDF)
