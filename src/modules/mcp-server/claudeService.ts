@@ -5,6 +5,7 @@ import { ClaudeMessage, ClaudeRequest, ClaudeResponse } from './types';
 import { ToolExecutor } from './toolExecutor';
 import { Request } from 'express';
 import { selectRelevantTools } from './toolSelector';
+import { sanitizeToolDefinition } from './toolSchemaUtils';
 
 /**
  * Service for interacting with Claude AI API
@@ -34,8 +35,9 @@ export class ClaudeService {
     usage: { input_tokens: number; output_tokens: number };
   }> {
     // Build messages array
+    const limitedHistory = conversationHistory.slice(-4);
     const messages = [
-      ...conversationHistory,
+      ...limitedHistory,
       {
         role: 'user' as const,
         content: message,
@@ -52,34 +54,12 @@ export class ClaudeService {
     const currentMonth = now.toLocaleString('default', { month: 'long' });
 
     // System prompt for HRM context
-    const systemPrompt = `You are a proactive HRM AI assistant. NEVER ask for permission or clarification - just execute the required tools immediately.
-
-IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations.
-
-CRITICAL ACTION RULES - FOLLOW THESE EXACTLY:
-1. NEVER say "I cannot", "Would you like me to", or ask for confirmation
-2. If user wants "all employees" → Call search_employees with query="" (empty string) to get ALL employees
-3. If user wants employees by department → Call get_departments, then get_department_employees for EACH department
-4. If no IDs/filters → fetch ALL data (use empty/null parameters)
-5. Multiple tool calls are REQUIRED and EXPECTED - do them automatically
-6. SQL queries for complex data (skills, salaries, JOINs) → get_database_schema then execute_sql_query
-7. Reports → call generate_quick_report or generate_dynamic_report immediately
-
-EMPLOYEE QUERY EXAMPLES (EXECUTE IMMEDIATELY):
-- "Show all employees" → search_employees(query="")
-- "All employees with departments" → search_employees(query="") with include department
-- "Employees by department" → get_departments() then get_department_employees() for each
-- "Employee skills and salaries" → get_database_schema() then execute_sql_query with JOIN
-
-NEVER EXPLAIN WHAT YOU'RE GOING TO DO - JUST DO IT.
-If a task requires 5 tool calls, make all 5 calls without asking.
-If a task requires 10 tool calls, make all 10 calls without asking.
-
-Available data domains: employees, departments, attendance, leaves, recruitment, performance, HYPER insights.
-Tools available: ${relevantTools.length} selected for this query.
-
-Execute immediately. No explanations. No confirmations. Just action.`;
-
+    const systemPrompt = `You are an HRM assistant. Today is ${currentDate} (${currentMonth} ${currentYear}).
+Act decisively but keep responses compact:
+- Prefer focused filters and fetch no more than ~50 rows unless the user passes a higher "limit".
+- Summaries and counts beat raw dumps; explain how to request more detail when needed.
+- Use SQL tools only for multi-table joins or aggregations.
+- Respond directly without meta commentary.`;
     try {
       // Initial API call
       let response = await this.client.messages.create({
@@ -135,13 +115,19 @@ Execute immediately. No explanations. No confirmations. Just action.`;
           max_tokens: this.maxTokens,
           system: systemPrompt,
           messages: messages as any,
-          tools: useTools ? this.convertToolsToClaudeFormat() : undefined,
+          tools: useTools ? this.convertToolsToClaudeFormat(relevantTools) : undefined,
         });
       }
 
       // Extract final text response
       const textBlocks = response.content.filter((block: any) => block.type === 'text');
       finalResponse = textBlocks.map((block: any) => block.text).join('\n');
+
+      if (response.usage) {
+        console.log(
+          `[MCP][Claude] Token usage - input: ${response.usage.input_tokens ?? 0}, output: ${response.usage.output_tokens ?? 0}`
+        );
+      }
 
       return {
         response: finalResponse,
@@ -157,11 +143,14 @@ Execute immediately. No explanations. No confirmations. Just action.`;
    * Convert MCP tools to Claude API format
    */
   private convertToolsToClaudeFormat(tools = mcpTools): any[] {
-    return tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.inputSchema,
-    }));
+    return tools.map((tool) => {
+      const sanitized = sanitizeToolDefinition(tool);
+      return {
+        name: sanitized.name,
+        description: sanitized.description,
+        input_schema: sanitized.inputSchema,
+      };
+    });
   }
 
   /**
@@ -197,3 +186,4 @@ Execute immediately. No explanations. No confirmations. Just action.`;
 
 // Export singleton instance
 export const claudeService = new ClaudeService();
+

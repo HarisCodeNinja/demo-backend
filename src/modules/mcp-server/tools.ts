@@ -39,19 +39,23 @@ export const mcpTools: MCPTool[] = [
           description: 'Include inactive employees',
           default: false,
         },
+        limit: {
+          type: 'number',
+          description: 'Max employees to fetch (default 50)',
+        },
       },
       required: ['departmentId'],
     },
   },
   {
     name: 'search_employees',
-    description: 'Search employees by name/email OR get ALL employees if query is empty. Use query="" to get all employees (up to 1000). Includes department, designation, location.',
+    description: 'Search employees by name/email. Empty query returns a 50-row preview (use "limit" to fetch more). Includes department, designation, location.',
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Search query (name, email). Use empty string "" to get ALL employees.',
+          description: 'Search query (name, email). Leave blank for a preview of all employees.',
           default: '',
         },
         filters: {
@@ -60,12 +64,11 @@ export const mcpTools: MCPTool[] = [
           properties: {
             departmentId: { type: 'string' },
             designationId: { type: 'string' },
-            locationId: { type: 'string' },
           },
         },
         limit: {
           type: 'number',
-          description: 'Max results (default 10 for search, 1000 for all)',
+          description: 'Max results (default 20 for search, 50 for preview)',
         },
       },
       required: [],
@@ -122,7 +125,8 @@ export const mcpTools: MCPTool[] = [
         },
         limit: {
           type: 'number',
-          default: 20,
+          description: 'Max leave requests to fetch (default 50)',
+          default: 50,
         },
       },
     },
@@ -146,6 +150,10 @@ export const mcpTools: MCPTool[] = [
           type: 'boolean',
           description: 'Include candidate application statistics',
           default: false,
+        },
+        limit: {
+          type: 'number',
+          description: 'Max job openings to fetch (default 50)',
         },
       },
     },
@@ -171,7 +179,8 @@ export const mcpTools: MCPTool[] = [
         },
         limit: {
           type: 'number',
-          default: 20,
+          description: 'Max candidates to fetch (default 50)',
+          default: 50,
         },
       },
     },
@@ -194,26 +203,23 @@ export const mcpTools: MCPTool[] = [
           type: 'string',
           enum: ['draft', 'submitted', 'completed'],
         },
+        limit: {
+          type: 'number',
+          description: 'Max reviews to fetch (default 50)',
+        },
       },
     },
   },
   {
     name: 'get_hyper_insights',
-    description: 'Get intelligent insights from the HYPER agentic layer. This provides automated HR analytics like missing documents, incomplete onboarding, attendance patterns, etc.',
+    description:
+      'Get intelligent insights from the HYPER agentic layer. This provides automated HR analytics like missing documents, incomplete onboarding, attendance patterns, etc.',
     inputSchema: {
       type: 'object',
       properties: {
         insightType: {
           type: 'string',
-          enum: [
-            'missing_documents',
-            'incomplete_onboarding',
-            'attendance_summary',
-            'absentee_patterns',
-            'recruitment_pipeline',
-            'pending_feedback',
-            'quick_stats',
-          ],
+          enum: ['missing_documents', 'incomplete_onboarding', 'attendance_summary', 'absentee_patterns', 'recruitment_pipeline', 'pending_feedback', 'quick_stats'],
           description: 'Type of insight to retrieve',
         },
         filters: {
@@ -296,13 +302,15 @@ export const mcpTools: MCPTool[] = [
   },
   {
     name: 'generate_dynamic_report',
-    description: 'POWERFUL: Generate a comprehensive HRM report based on ANY natural language prompt. Claude will analyze the prompt, fetch relevant data, and generate a professional report in JSON, Markdown (.md), and PDF formats. Perfect for custom reports, analytics, and executive summaries.',
+    description:
+      'POWERFUL: Generate a comprehensive HRM report based on ANY natural language prompt. Claude will analyze the prompt, fetch relevant data, and generate a professional report in JSON, Markdown (.md), and PDF formats. Perfect for custom reports, analytics, and executive summaries.',
     inputSchema: {
       type: 'object',
       properties: {
         prompt: {
           type: 'string',
-          description: 'Natural language description of the report you want. Examples: "Employee headcount by department", "Attendance analysis for last month", "Recruitment pipeline status", "Performance review summary"',
+          description:
+            'Natural language description of the report you want. Examples: "Employee headcount by department", "Attendance analysis for last month", "Recruitment pipeline status", "Performance review summary"',
         },
         includeCharts: {
           type: 'boolean',

@@ -1,6 +1,8 @@
 import { ToolCallResponse } from './types';
 import { Request } from 'express';
 import { Op } from 'sequelize';
+import * as fs from 'fs';
+import * as path from 'path';
 import { reportGenerator } from './reportGenerator';
 import { genaiReportGenerator } from './genaiReportGenerator';
 import { DynamicSqlExecutor } from './dynamicSqlExecutor';
@@ -27,29 +29,183 @@ import { Goal } from '../goal/model';
  * This maps tool calls to actual HRM API operations
  */
 export class ToolExecutor {
+  private static readonly MAX_RESPONSE_ARRAY_ITEMS = 25;
+  private static readonly MAX_RESPONSE_STRING_LENGTH = 200;
+  private static readonly DEFAULT_LIST_LIMIT = 50;
+  private static readonly RESULT_EXPORT_DIR = path.join(process.cwd(), 'tmp', 'mcp-results');
+  private static employeeLocationSupported: boolean | null = null;
+
+  private static hasEmployeeLocationAssociation(): boolean {
+    if (this.employeeLocationSupported === false) {
+      return false;
+    }
+    const associationExists = Boolean((Employee as any)?.associations?.location);
+    const attributeExists = Boolean((Employee as any)?.rawAttributes?.locationId);
+    const supported = associationExists && attributeExists;
+    this.employeeLocationSupported = supported;
+    return supported;
+  }
+
   /**
    * Create standardized response format with data and meta
    */
-  private static createResponse(data: any, message: string, additionalMeta?: any): ToolCallResponse {
+  private static createResponse(
+    data: any,
+    message: string,
+    additionalMeta?: any,
+    options?: { maxArrayItems?: number; maxStringLength?: number }
+  ): ToolCallResponse {
+    const { sanitizedData, truncation } = this.guardResponsePayload(data, options);
+    const exportPath = truncation ? this.persistFullPayload(data) : null;
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify(
             {
-              data,
+              data: sanitizedData,
               meta: {
                 message,
                 timestamp: new Date().toISOString(),
                 ...additionalMeta,
+                ...(truncation
+                  ? {
+                      truncatedPreview: true,
+                      truncation,
+                    }
+                  : {}),
+                ...(exportPath
+                  ? {
+                      fullResultPath: exportPath,
+                      note: 'Preview truncated for token efficiency. Full JSON saved locally.',
+                    }
+                  : {}),
               },
             },
             null,
-            2
+            0
           ),
         },
       ],
     };
+  }
+
+  private static guardResponsePayload(
+    data: any,
+    options?: { maxArrayItems?: number; maxStringLength?: number }
+  ): {
+    sanitizedData: any;
+    truncation?: {
+      arrays?: Array<{ field: string; kept: number; original: number }>;
+      strings?: Array<{ field: string; kept: number; original: number }>;
+    };
+  } {
+    const maxArrayItems = options?.maxArrayItems ?? this.MAX_RESPONSE_ARRAY_ITEMS;
+    const maxStringLength = options?.maxStringLength ?? this.MAX_RESPONSE_STRING_LENGTH;
+    const truncatedArrays: Array<{ field: string; kept: number; original: number }> = [];
+    const truncatedStrings: Array<{ field: string; kept: number; original: number }> = [];
+
+    const process = (value: any, path: string): any => {
+      if (Array.isArray(value)) {
+        const original = value.length;
+        if (original === 0) {
+          return [];
+        }
+        const limit = Math.min(maxArrayItems, original);
+        if (original > limit) {
+          truncatedArrays.push({
+            field: path || 'data',
+            kept: limit,
+            original,
+          });
+        }
+        return value.slice(0, limit).map((item) => process(item, path ? `${path}[]` : 'data[]'));
+      }
+
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+
+      if (value && typeof value === 'object') {
+        const result: any = {};
+        for (const key of Object.keys(value)) {
+          const nextPath = path ? `${path}.${key}` : key;
+          result[key] = process(value[key], nextPath);
+        }
+        return result;
+      }
+
+      if (typeof value === 'string' && value.length > maxStringLength) {
+        truncatedStrings.push({
+          field: path || 'data',
+          kept: maxStringLength,
+          original: value.length,
+        });
+        return `${value.slice(0, maxStringLength)}...`;
+      }
+
+      return value;
+    };
+
+    const sanitizedData = process(data, '');
+    const hasArrayTruncation = truncatedArrays.length > 0;
+    const hasStringTruncation = truncatedStrings.length > 0;
+
+    return {
+      sanitizedData,
+      truncation:
+        hasArrayTruncation || hasStringTruncation
+          ? {
+              arrays: hasArrayTruncation ? truncatedArrays : undefined,
+              strings: hasStringTruncation ? truncatedStrings : undefined,
+            }
+          : undefined,
+    };
+  }
+
+  private static persistFullPayload(data: any): string | null {
+    try {
+      if (!fs.existsSync(this.RESULT_EXPORT_DIR)) {
+        fs.mkdirSync(this.RESULT_EXPORT_DIR, { recursive: true });
+      }
+      const fileName = `result-${Date.now()}-${Math.round(Math.random() * 1e6)}.json`;
+      const filePath = path.join(this.RESULT_EXPORT_DIR, fileName);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      return path.relative(process.cwd(), filePath);
+    } catch {
+      return null;
+    }
+  }
+
+  private static buildEmployeeIncludes(includeLocation: boolean = true) {
+    const baseIncludes: any[] = [
+      { model: Department, as: 'department' },
+      { model: Designation, as: 'designation' },
+    ];
+
+    if (includeLocation && this.hasEmployeeLocationAssociation()) {
+      baseIncludes.push({ model: Location, as: 'location' });
+    }
+
+    return baseIncludes;
+  }
+
+  private static isEmployeeLocationError(error: any): boolean {
+    const message = (error?.message || '').toLowerCase();
+    return (
+      message.includes('location is not associated') ||
+      message.includes('location_id') ||
+      message.includes('column "location') ||
+      message.includes('location data')
+    );
+  }
+
+  private static disableEmployeeLocationSupport() {
+    if (this.employeeLocationSupported === false) {
+      return;
+    }
+    console.warn('[MCP] Disabling employee location support due to schema mismatch');
+    this.employeeLocationSupported = false;
   }
 
   /**
@@ -156,14 +312,27 @@ export class ToolExecutor {
       whereClause.employeeId = identifier;
     }
 
-    const employee = await Employee.findOne({
-      where: whereClause,
-      include: [
-        { model: Department, as: 'department' },
-        { model: Designation, as: 'designation' },
-        { model: Location, as: 'location' },
-      ],
-    });
+    const includesWithLocation = this.buildEmployeeIncludes(true);
+
+    let employee;
+    try {
+      employee = await Employee.findOne({
+        where: whereClause,
+        include: includesWithLocation,
+      });
+    } catch (error: any) {
+      if (this.isEmployeeLocationError(error)) {
+        console.warn('[MCP] Employee location include failed, retrying without location data');
+        this.disableEmployeeLocationSupport();
+        const fallbackIncludes = this.buildEmployeeIncludes(false);
+        employee = await Employee.findOne({
+          where: whereClause,
+          include: fallbackIncludes,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     if (!employee) {
       return {
@@ -213,12 +382,14 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { departmentId, includeInactive } = args;
+    const { departmentId, includeInactive, limit } = args;
 
     const whereClause: any = { departmentId };
     if (!includeInactive) {
       whereClause.status = 'active';
     }
+
+    const effectiveLimit = typeof limit === 'number' ? limit : this.DEFAULT_LIST_LIMIT;
 
     const employees = await Employee.findAll({
       where: whereClause,
@@ -226,6 +397,7 @@ export class ToolExecutor {
         { model: Designation, as: 'designation' },
       ],
       order: [['firstName', 'ASC']],
+      limit: effectiveLimit,
     });
 
     const data = {
@@ -235,7 +407,11 @@ export class ToolExecutor {
 
     const message = `Found ${employees.length} employee${employees.length !== 1 ? 's' : ''} in the department`;
 
-    return this.createResponse(data, message, { count: employees.length });
+    return this.createResponse(data, message, {
+      count: employees.length,
+      limit: effectiveLimit,
+      moreAvailable: employees.length === effectiveLimit,
+    });
   }
 
   /**
@@ -247,17 +423,22 @@ export class ToolExecutor {
   ): Promise<ToolCallResponse> {
     const { query = '', filters, limit } = args;
 
-    // If query is empty and no limit specified, get ALL employees
-    const effectiveLimit = query === '' && !limit ? 1000 : (limit || 10);
+    const trimmedQuery = query.trim();
+    const effectiveLimit =
+      typeof limit === 'number'
+        ? limit
+        : trimmedQuery
+        ? 20
+        : this.DEFAULT_LIST_LIMIT;
 
     const whereClause: any = {};
 
     // Only apply text search if query is provided
-    if (query && query.trim() !== '') {
+    if (trimmedQuery !== '') {
       whereClause[Op.or] = [
-        { firstName: { [Op.iLike]: `%${query}%` } },
-        { lastName: { [Op.iLike]: `%${query}%` } },
-        { email: { [Op.iLike]: `%${query}%` } },
+        { firstName: { [Op.iLike]: `%${trimmedQuery}%` } },
+        { lastName: { [Op.iLike]: `%${trimmedQuery}%` } },
+        { email: { [Op.iLike]: `%${trimmedQuery}%` } },
       ];
     }
 
@@ -267,25 +448,44 @@ export class ToolExecutor {
       if (filters.locationId) whereClause.locationId = filters.locationId;
     }
 
-    const employees = await Employee.findAll({
-      where: whereClause,
-      include: [
-        { model: Department, as: 'department' },
-        { model: Designation, as: 'designation' },
-        { model: Location, as: 'location' },
-      ],
-      limit: effectiveLimit,
-      order: [['firstName', 'ASC'], ['lastName', 'ASC']],
-    });
+    const includesWithLocation = this.buildEmployeeIncludes(true);
+
+    let employees;
+    try {
+      employees = await Employee.findAll({
+        where: whereClause,
+        include: includesWithLocation,
+        limit: effectiveLimit,
+        order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+      });
+    } catch (error: any) {
+      if (this.isEmployeeLocationError(error)) {
+        console.warn('[MCP] Employee search failed due to location join; retrying without location');
+        this.disableEmployeeLocationSupport();
+        const fallbackIncludes = this.buildEmployeeIncludes(false);
+        employees = await Employee.findAll({
+          where: whereClause,
+          include: fallbackIncludes,
+          limit: effectiveLimit,
+          order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const data = {
-      query,
+      query: trimmedQuery,
       employees: employees.map((e) => e.toJSON()),
     };
 
-    const message = `Found ${employees.length} employee${employees.length !== 1 ? 's' : ''} matching "${query}"`;
+    const message = `Found ${employees.length} employee${employees.length !== 1 ? 's' : ''} matching "${trimmedQuery}"`;
 
-    return this.createResponse(data, message, { count: employees.length });
+    return this.createResponse(data, message, {
+      count: employees.length,
+      limit: effectiveLimit,
+      moreAvailable: employees.length === effectiveLimit,
+    });
   }
 
   /**
@@ -353,7 +553,13 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { status, employeeId, startDate, endDate, limit = 20 } = args;
+    const {
+      status,
+      employeeId,
+      startDate,
+      endDate,
+      limit = this.DEFAULT_LIST_LIMIT,
+    } = args;
 
     const whereClause: any = {};
     if (status) whereClause.status = status;
@@ -384,7 +590,11 @@ export class ToolExecutor {
     const statusText = status ? ` with status "${status}"` : '';
     const message = `Found ${leaveRequests.length} leave request${leaveRequests.length !== 1 ? 's' : ''}${statusText}`;
 
-    return this.createResponse(data, message, { count: leaveRequests.length });
+    return this.createResponse(data, message, {
+      count: leaveRequests.length,
+      limit,
+      moreAvailable: leaveRequests.length === limit,
+    });
   }
 
   /**
@@ -394,7 +604,7 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { departmentId, status, includeApplications } = args;
+    const { departmentId, status, includeApplications, limit = this.DEFAULT_LIST_LIMIT } = args;
 
     const whereClause: any = {};
     if (departmentId) whereClause.departmentId = departmentId;
@@ -405,6 +615,7 @@ export class ToolExecutor {
       include: [
         { model: Department, as: 'department' },
       ],
+      limit,
     });
 
     const jobOpeningsList = jobOpenings.map((j) => j.toJSON());
@@ -427,7 +638,11 @@ export class ToolExecutor {
     const applicationsText = includeApplications ? ' with application counts' : '';
     const message = `Found ${jobOpenings.length} job opening${jobOpenings.length !== 1 ? 's' : ''}${statusText}${applicationsText}`;
 
-    return this.createResponse(data, message, { count: jobOpenings.length });
+    return this.createResponse(data, message, {
+      count: jobOpenings.length,
+      limit,
+      moreAvailable: jobOpenings.length === limit,
+    });
   }
 
   /**
@@ -437,7 +652,7 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { jobOpeningId, status, skills, limit = 20 } = args;
+    const { jobOpeningId, status, skills, limit = this.DEFAULT_LIST_LIMIT } = args;
 
     const whereClause: any = {};
     if (jobOpeningId) whereClause.jobOpeningId = jobOpeningId;
@@ -463,7 +678,11 @@ export class ToolExecutor {
     const statusText = status ? ` with status "${status}"` : '';
     const message = `Found ${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}${statusText}`;
 
-    return this.createResponse(data, message, { count: candidates.length });
+    return this.createResponse(data, message, {
+      count: candidates.length,
+      limit,
+      moreAvailable: candidates.length === limit,
+    });
   }
 
   /**
@@ -473,7 +692,7 @@ export class ToolExecutor {
     args: any,
     req: Request
   ): Promise<ToolCallResponse> {
-    const { employeeId, reviewPeriod, status } = args;
+    const { employeeId, reviewPeriod, status, limit = this.DEFAULT_LIST_LIMIT } = args;
 
     const whereClause: any = {};
     if (employeeId) whereClause.employeeId = employeeId;
@@ -493,6 +712,7 @@ export class ToolExecutor {
         },
       ],
       order: [['createdAt', 'DESC']],
+      limit,
     });
 
     const data = {
@@ -503,7 +723,11 @@ export class ToolExecutor {
     const statusText = status ? ` with status "${status}"` : '';
     const message = `Found ${reviews.length} performance review${reviews.length !== 1 ? 's' : ''}${periodText}${statusText}`;
 
-    return this.createResponse(data, message, { count: reviews.length });
+    return this.createResponse(data, message, {
+      count: reviews.length,
+      limit,
+      moreAvailable: reviews.length === limit,
+    });
   }
 
   /**
@@ -889,14 +1113,7 @@ export class ToolExecutor {
               '',
               'JSON preview:',
               '```json',
-              JSON.stringify(
-                result.data.slice(
-                  0,
-                  Math.max(result.formattedResult.previewRowCount, 5)
-                ),
-                null,
-                2
-              ),
+              JSON.stringify(result.data.slice(0, Math.min(result.rowCount, 5))),
               '```',
             ].join('\n'),
           },

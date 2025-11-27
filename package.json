@@ -5,11 +5,15 @@
     "main": "index.js",
     "scripts": {
         "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+        "mcp": "node dist/modules/mcp-server/stdio-server.js",
+  "mcp:dev": "ts-node src/modules/mcp-server/stdio-server.ts",
+        
         "format": "prettier --write \"src/**/*.ts\"",
         "format:check": "prettier --check \"src/**/*.ts\"",
         "test": "echo \"Error: no test specified\" && exit 1",
         "start": "node ./dist/server.js",
         "build": "tsc",
+        "build:mcp": "tsc && node -e \"try{require('fs').chmodSync('dist/modules/mcp-server/stdio-server.js', '755')}catch(e){}\"",
         "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
         "lint:fix": "eslint \"src/**/*.ts\" --fix",
         "seed:dashboard-hyper": "ts-node src/scripts/seedDashboardHyperData.ts",

@@ -9,16 +9,20 @@ const router = Router();
  * All routes are prefixed with /mcp
  */
 
-// Public health check
+// OAuth token endpoint for client_credentials flow
+router.post('/oauth/token', MCPController.getOAuthToken);
+
+// Public health check (Claude Desktop sometimes probes with both GET and POST)
 router.get('/status', MCPController.getStatus);
+router.post('/status', MCPController.getStatus);
 
 // Protected routes require authentication
 // Most MCP endpoints require at least manager role
 const mcpAuth = [validateAccessToken, requireRoles(['user:manager', 'user:hr', 'user:admin'])];
 
 // Server capabilities
-router.get('/capabilities', ...mcpAuth, MCPController.getCapabilities);
-
+router.get('/capabilities', MCPController.getCapabilities);
+router.get('/stream', ...mcpAuth, MCPController.stream);
 // Tools
 router.get('/tools', ...mcpAuth, MCPController.listTools);
 router.post('/tools/call', ...mcpAuth, MCPController.callTool);
@@ -28,7 +32,7 @@ router.get('/prompts', ...mcpAuth, MCPController.listPrompts);
 router.post('/prompts/get', ...mcpAuth, MCPController.getPrompt);
 
 // Chat with Claude
-router.post('/chat', ...mcpAuth, MCPController.chat);
+router.post('/chat', MCPController.chat);
 
 // Models
 router.get('/models', ...mcpAuth, MCPController.getModels);

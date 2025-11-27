@@ -14,7 +14,7 @@ import { QueryTypes } from 'sequelize';
  */
 export class DynamicSqlExecutor {
   private static readonly MAX_RESULT_LIMIT = 1000;
-  private static readonly MAX_PREVIEW_ROWS = 20;
+  private static readonly MAX_PREVIEW_ROWS = 10;
   private static readonly QUERY_TIMEOUT_MS = 30000;
   private static readonly MAX_TABLE_HINTS = 6;
   private static readonly MAX_COLUMN_HINTS = 12;
@@ -95,11 +95,33 @@ export class DynamicSqlExecutor {
         type: QueryTypes.SELECT,
       });
 
+      const tablesSummary = tables.map((table) => {
+        const tableName = table.table_name;
+        const tablePrimaryKeys = keyColumns
+          .filter((col) => col.table_name === tableName && col.constraint_type === 'PRIMARY KEY')
+          .map((col) => col.column_name);
+
+        const tableForeignKeys = relationships
+          .filter((rel) => rel.from_table === tableName)
+          .map((rel) => `${rel.from_column} -> ${rel.to_table}.${rel.to_column}`);
+
+        return {
+          table: tableName,
+          primaryKeys: tablePrimaryKeys,
+          foreignKeysPreview: tableForeignKeys.slice(0, 3),
+          foreignKeyCount: tableForeignKeys.length,
+        };
+      });
+
       return {
-        tables: tables.map(t => t.table_name),
-        keyColumns: keyColumns,
-        relationships: relationships,
-        note: 'Compact schema. Use get_table_info for detailed column information.',
+        summary: {
+          totalTables: tables.length,
+          tablesWithForeignKeys: relationships
+            .map((rel) => rel.from_table)
+            .filter((value, index, arr) => arr.indexOf(value) === index).length,
+        },
+        tables: tablesSummary,
+        note: 'Compact schema preview. For columns and full relationships use get_table_info or execute targeted queries.',
       };
     } catch (error: any) {
       throw new Error(`Failed to get compact schema: ${error.message}`);

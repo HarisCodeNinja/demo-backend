@@ -5,6 +5,7 @@ import { ClaudeMessage } from './types';
 import { ToolExecutor } from './toolExecutor';
 import { Request } from 'express';
 import { selectRelevantTools } from './toolSelector';
+import { sanitizeToolDefinition } from './toolSchemaUtils';
 
 /**
  * Service for interacting with Google Gemini AI API
@@ -40,7 +41,8 @@ export class GenaiService {
     usage: { input_tokens: number; output_tokens: number };
   }> {
     // Build conversation history in Gemini format
-    const history = conversationHistory.map((msg) => ({
+    const limitedHistory = conversationHistory.slice(-4);
+    const history = limitedHistory.map((msg) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     }));
@@ -64,32 +66,14 @@ export class GenaiService {
       systemInstruction: {
         parts: [
           {
-            text: `You are a proactive HRM AI assistant. NEVER ask for permission or clarification - just execute the required tools immediately.
+            text: `You are an HRM assistant. Today is ${currentDate} (${currentMonth} ${currentYear}).
+Act decisively but keep responses compact:
+- Prefer focused filters and fetch no more than ~50 rows unless the user passes a higher "limit".
+- Summaries and counts beat raw dumps; explain how to request more detail when needed.
+- Use SQL tools only for multi-table joins or aggregations.
+- Respond directly without meta commentary.
 
-IMPORTANT: Current Date is ${currentDate} (${currentMonth} ${currentYear}). Use this for all relative date calculations.
-
-CRITICAL ACTION RULES - FOLLOW THESE EXACTLY:
-1. NEVER say "I cannot", "Would you like me to", or ask for confirmation
-2. If user wants "all employees" → Call search_employees with query="" (empty string) to get ALL employees
-3. If user wants employees by department → Call get_departments, then get_department_employees for EACH department
-4. If no IDs/filters → fetch ALL data (use empty/null parameters)
-5. Multiple tool calls are REQUIRED and EXPECTED - do them automatically
-6. SQL queries for complex data (skills, salaries, JOINs) → get_database_schema then execute_sql_query
-7. Reports → call generate_quick_report or generate_dynamic_report immediately
-
-EMPLOYEE QUERY EXAMPLES (EXECUTE IMMEDIATELY):
-- "Show all employees" → search_employees(query="")
-- "All employees with departments" → search_employees(query="") with include department
-- "Employees by department" → get_departments() then get_department_employees() for each
-- "Employee skills and salaries" → get_database_schema() then execute_sql_query with JOIN
-
-NEVER EXPLAIN WHAT YOU'RE GOING TO DO - JUST DO IT.
-If a task requires 5 tool calls, make all 5 calls without asking.
-If a task requires 10 tool calls, make all 10 calls without asking.
-
-Tools available: ${relevantTools.length} selected for this query.
-
-Execute immediately. No explanations. No confirmations. Just action.`,
+Tools available: ${relevantTools.length}.`,
           },
         ],
         role: 'user',
@@ -173,6 +157,10 @@ Execute immediately. No explanations. No confirmations. Just action.`,
         maxIterations--;
       }
 
+      console.log(
+        `[MCP][Gemini] Token usage - input: ${totalInputTokens}, output: ${totalOutputTokens}`
+      );
+
       return {
         response: finalResponse,
         toolCalls,
@@ -192,11 +180,14 @@ Execute immediately. No explanations. No confirmations. Just action.`,
   private convertToolsToGeminiFormat(tools = mcpTools): any[] {
     return [
       {
-        functionDeclarations: tools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.inputSchema,
-        })),
+        functionDeclarations: tools.map((tool) => {
+          const sanitized = sanitizeToolDefinition(tool);
+          return {
+            name: sanitized.name,
+            description: sanitized.description,
+            parameters: sanitized.inputSchema,
+          };
+        }),
       },
     ];
   }
@@ -235,3 +226,6 @@ Execute immediately. No explanations. No confirmations. Just action.`,
 
 // Export singleton instance
 export const genaiService = new GenaiService();
+
+
+
