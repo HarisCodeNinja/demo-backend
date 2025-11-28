@@ -124,9 +124,7 @@ Act decisively but keep responses compact:
       finalResponse = textBlocks.map((block: any) => block.text).join('\n');
 
       if (response.usage) {
-        console.log(
-          `[MCP][Claude] Token usage - input: ${response.usage.input_tokens ?? 0}, output: ${response.usage.output_tokens ?? 0}`
-        );
+        console.log(`[MCP][Claude] Token usage - input: ${response.usage.input_tokens ?? 0}, output: ${response.usage.output_tokens ?? 0}`);
       }
 
       return {
@@ -186,4 +184,3 @@ Act decisively but keep responses compact:
 
 // Export singleton instance
 export const claudeService = new ClaudeService();
-

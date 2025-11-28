@@ -2,11 +2,14 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { Buffer } from 'buffer';
 import crypto from 'crypto';
+import Anthropic from '@anthropic-ai/sdk';
 import { claudeService } from './claudeService';
 import { mcpTools } from './tools';
 import { ToolExecutor } from './toolExecutor';
 import { ChatRequestSchema, ToolCallRequestSchema, PromptRequestSchema } from './types';
 import { generateAccessToken } from '../../helper/auth';
+import { env } from '../../config/env';
+import { QueryAnalyzer } from './queryAnalyzer';
 
 type AuthorizationCodeRecord = {
   clientId: string;
@@ -691,5 +694,550 @@ export class MCPController {
     }
 
     res.redirect(302, redirectUrl.toString());
+  });
+
+  static conversationalChat = asyncHandler(async (req: Request, res: Response) => {
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: 'Messages array required' });
+      return;
+    }
+
+    try {
+      const anthropic = new Anthropic({
+        apiKey: env.CLAUDE_API_KEY || '',
+      });
+
+      const anthropicTools = mcpTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema: {
+          type: 'object' as const,
+          properties: tool.inputSchema.properties || {},
+          required: tool.inputSchema.required || [],
+        },
+      }));
+
+      const systemPrompt = `You are an AI assistant with access to HRM tools. When asked to create charts or UI components:
+1. Use available tools to fetch the required data
+2. After getting data, generate complete React components with shadcn/ui charts
+3. Use proper chart libraries (Recharts with shadcn)
+4. Return the complete, production-ready component code
+5. Include all necessary imports and styling
+6. Make charts responsive and professional
+
+Be concise with tool usage - get the data you need efficiently, then generate the UI.`;
+
+      // Initial API call to Claude
+      let response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8192, // Increased for component generation
+        system: systemPrompt,
+        tools: anthropicTools,
+        messages: messages,
+      });
+
+      // Keep calling until no more tool uses
+      const conversationHistory = [...messages];
+      let iterationCount = 0;
+      const maxIterations = 15; // Prevent infinite loops (increased for complex tasks)
+
+      while (response.stop_reason === 'tool_use' && iterationCount < maxIterations) {
+        iterationCount++;
+
+        // Extract tool uses from response
+        const toolUses = response.content.filter((block) => block.type === 'tool_use');
+
+        // Execute all tools
+        const toolResults = await Promise.all(
+          toolUses.map(async (toolUse: any) => {
+            try {
+              console.log(`[Claude Chat] Executing tool: ${toolUse.name}`, toolUse.input);
+
+              const result = await ToolExecutor.execute(toolUse.name, toolUse.input || {}, req, 'claude');
+
+              return {
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify(result),
+              };
+            } catch (error: any) {
+              console.error(`[Claude Chat] Tool execution error for ${toolUse.name}:`, error);
+              return {
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify({
+                  error: error.message || 'Tool execution failed',
+                  isError: true,
+                }),
+                is_error: true,
+              };
+            }
+          }),
+        );
+
+        // Add assistant response and tool results to conversation
+        conversationHistory.push({
+          role: 'assistant',
+          content: response.content,
+        } as any);
+
+        conversationHistory.push({
+          role: 'user',
+          content: toolResults,
+        } as any);
+
+        // Continue conversation with tool results
+        response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8192,
+          system: systemPrompt,
+          tools: anthropicTools,
+          messages: conversationHistory,
+        });
+      }
+
+      // Extract final text response
+      const textContent = response.content
+        .filter((block) => block.type === 'text')
+        .map((block) => (block as any).text)
+        .join('\n');
+
+      res.json({
+        success: true,
+        message: textContent,
+        fullResponse: response,
+        toolsUsed: iterationCount > 0,
+        iterationCount,
+      });
+    } catch (error: any) {
+      console.error('[Claude Chat] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to process chat request',
+      });
+    }
+  });
+
+  /**
+   * Streaming Conversational Chat - Smooth & Real-time
+   * Provides grouped, structured streaming responses for easy frontend consumption
+   */
+  static streamingChat = asyncHandler(async (req: Request, res: Response) => {
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: 'Messages array required' });
+      return;
+    }
+
+    try {
+      // Initialize Anthropic client
+      const anthropic = new Anthropic({
+        apiKey: env.CLAUDE_API_KEY || '',
+      });
+
+      // Convert MCP tools to Anthropic format with proper typing
+      const anthropicTools = mcpTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema: {
+          type: 'object' as const,
+          properties: tool.inputSchema.properties || {},
+          required: tool.inputSchema.required || [],
+        },
+      }));
+
+      // Set up SSE headers for real-time streaming
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      res.setHeader('Transfer-Encoding', 'chunked'); // Enable chunked transfer
+
+      // Helper function to send structured events with immediate flush
+      const sendEvent = (data: any) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        // Force flush immediately for real-time delivery
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
+        }
+      };
+
+      // Send keepalive every 15 seconds to prevent disconnection
+      const keepAliveInterval = setInterval(() => {
+        res.write(': keepalive\n\n');
+      }, 15000);
+
+      // Clean up on close
+      req.on('close', () => {
+        clearInterval(keepAliveInterval);
+      });
+
+      // System prompt for better UI generation
+      const systemPrompt = `You are an AI assistant with access to HRM tools. When asked to create charts or UI components:
+1. Use available tools to fetch the required data
+2. After getting data, generate complete React components with shadcn/ui charts
+3. Use proper chart libraries (Recharts with shadcn)
+4. Return the complete, production-ready component code
+5. Include all necessary imports and styling
+6. Make charts responsive and professional
+
+Be concise with tool usage - get the data you need efficiently, then generate the UI.`;
+
+      // Maintain conversation state
+      const conversationHistory = [...messages];
+      let iterationCount = 0;
+      const maxIterations = 15;
+      let accumulatedText = ''; // Accumulate all text for the client
+
+      // Send initial status
+      sendEvent({
+        type: 'session_start',
+        timestamp: new Date().toISOString(),
+        message: 'Processing your request...',
+      });
+
+      // Tool execution loop
+      while (iterationCount < maxIterations) {
+        const isFirstIteration = iterationCount === 0;
+
+        // Send iteration start
+        if (!isFirstIteration) {
+          sendEvent({
+            type: 'iteration_start',
+            iteration: iterationCount + 1,
+            message: 'Analyzing tool results...',
+          });
+        }
+
+        // Create a new stream for each iteration
+        const stream = anthropic.messages.stream({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8192,
+          system: systemPrompt,
+          tools: anthropicTools,
+          messages: conversationHistory,
+        });
+
+        let currentChunk = '';
+        const toolsDetected: string[] = [];
+
+        // Stream text content with accumulated view - REAL-TIME
+        stream.on('text', (text) => {
+          currentChunk += text;
+          accumulatedText += text;
+
+          // Send immediately - no waiting!
+          sendEvent({
+            type: 'text_chunk',
+            chunk: text,
+            accumulated: accumulatedText,
+            position: accumulatedText.length,
+            timestamp: new Date().toISOString(),
+          });
+        });
+
+        // Detect tool usage - send immediately
+        stream.on('contentBlock', (block) => {
+          if (block.type === 'tool_use') {
+            toolsDetected.push(block.name);
+            // Send immediately
+            sendEvent({
+              type: 'tool_detected',
+              tool: block.name,
+              toolsInProgress: toolsDetected,
+              message: `Preparing to use: ${block.name}`,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+
+        // Wait for stream to complete
+        let finalMessage;
+        try {
+          finalMessage = await stream.finalMessage();
+        } catch (error: any) {
+          sendEvent({
+            type: 'stream_error',
+            error: error.message,
+            timestamp: new Date().toISOString(),
+          });
+          throw error;
+        }
+
+        // Check if Claude wants to use tools
+        if (finalMessage.stop_reason === 'tool_use') {
+          iterationCount++;
+
+          // Extract tool uses
+          const toolUses = finalMessage.content.filter((block: any) => block.type === 'tool_use');
+
+          if (toolUses.length === 0) {
+            break;
+          }
+
+          // Send grouped tool execution start
+          sendEvent({
+            type: 'tools_executing',
+            tools: toolUses.map((t: any) => ({
+              name: t.name,
+              input: t.input,
+            })),
+            count: toolUses.length,
+            message: `Executing ${toolUses.length} tool${toolUses.length > 1 ? 's' : ''}...`,
+          });
+
+          // Execute all tools with progress tracking
+          const toolResults = [];
+          for (let i = 0; i < toolUses.length; i++) {
+            const toolUse = toolUses[i] as any;
+
+            try {
+              // Send tool execution start - IMMEDIATELY
+              sendEvent({
+                type: 'tool_progress',
+                tool: toolUse.name,
+                status: 'executing',
+                progress: `${i + 1}/${toolUses.length}`,
+                message: `Executing ${toolUse.name}...`,
+                timestamp: new Date().toISOString(),
+              });
+
+              // Execute tool
+              const startTime = Date.now();
+              const result = await ToolExecutor.execute(toolUse.name, toolUse.input || {}, req, 'claude');
+              const executionTime = Date.now() - startTime;
+
+              // Send tool execution success with result preview - IMMEDIATELY
+              const resultPreview = typeof result === 'object' ? JSON.stringify(result).substring(0, 200) : String(result).substring(0, 200);
+
+              sendEvent({
+                type: 'tool_progress',
+                tool: toolUse.name,
+                status: 'completed',
+                progress: `${i + 1}/${toolUses.length}`,
+                message: `✓ ${toolUse.name} completed`,
+                resultPreview: resultPreview + (resultPreview.length >= 200 ? '...' : ''),
+                executionTime: `${executionTime}ms`,
+                timestamp: new Date().toISOString(),
+              });
+
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify(result),
+              });
+            } catch (error: any) {
+              console.error(`[Claude Streaming] Tool execution error for ${toolUse.name}:`, error);
+
+              // Send tool execution error
+              sendEvent({
+                type: 'tool_progress',
+                tool: toolUse.name,
+                status: 'error',
+                progress: `${i + 1}/${toolUses.length}`,
+                message: `✗ ${toolUse.name} failed: ${error.message}`,
+                error: error.message,
+              });
+
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify({
+                  error: error.message || 'Tool execution failed',
+                  isError: true,
+                }),
+                is_error: true,
+              });
+            }
+          }
+
+          // Send tools completed summary
+          sendEvent({
+            type: 'tools_completed',
+            completedCount: toolResults.filter((r) => !r.is_error).length,
+            errorCount: toolResults.filter((r) => r.is_error).length,
+            totalCount: toolResults.length,
+            message: 'Tool execution complete. Analyzing results...',
+          });
+
+          // Add assistant response and tool results to conversation
+          conversationHistory.push({
+            role: 'assistant',
+            content: finalMessage.content,
+          } as any);
+
+          conversationHistory.push({
+            role: 'user',
+            content: toolResults,
+          } as any);
+
+          // Continue to next iteration
+        } else {
+          // No more tool uses, we're done
+          break;
+        }
+      }
+
+      // Clear keepalive
+      clearInterval(keepAliveInterval);
+
+      // Send final completion with full context
+      sendEvent({
+        type: 'complete',
+        iterations: iterationCount,
+        totalText: accumulatedText,
+        textLength: accumulatedText.length,
+        timestamp: new Date().toISOString(),
+        message: 'Response complete',
+      });
+
+      res.end();
+    } catch (error: any) {
+      console.error('[Claude Chat] Streaming error:', error);
+
+      // Clear keepalive if it exists
+      if (req.listeners('close').length > 0) {
+        req.removeAllListeners('close');
+      }
+
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.write(
+          `data: ${JSON.stringify({
+            type: 'error',
+            error: error.message,
+            timestamp: new Date().toISOString(),
+          })}\n\n`,
+        );
+        res.end();
+      }
+    }
+  });
+
+  /**
+   * Get Claude Chat Health
+   * Check if conversational chat is properly configured
+   */
+  static getChatHealth = asyncHandler(async (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      status: 'healthy',
+      apiKeyConfigured: !!env.CLAUDE_API_KEY,
+      toolsAvailable: mcpTools.length,
+      model: 'claude-sonnet-4-20250514',
+    });
+  });
+
+  /**
+   * Analyze Query Complexity
+   * Returns complexity analysis and routing recommendations
+   */
+  static analyzeQuery = asyncHandler(async (req: Request, res: Response) => {
+    const { query } = req.body;
+
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Query string is required',
+      });
+      return;
+    }
+
+    const analysis = QueryAnalyzer.analyze(query);
+
+    res.json({
+      success: true,
+      query,
+      analysis,
+      endpoints: {
+        claudeDesktop: {
+          method: 'Open Claude Desktop',
+          description: 'Use the Claude Desktop app with your configured MCP server',
+          estimatedTime: analysis.estimatedTime.claudeDesktop,
+          available: true,
+        },
+        httpApi: {
+          conversational: {
+            method: 'POST',
+            endpoint: '/mcp/chat/conversational',
+            description: 'Non-streaming endpoint for complete responses',
+            estimatedTime: analysis.estimatedTime.httpApi,
+          },
+          streaming: {
+            method: 'POST',
+            endpoint: '/mcp/chat/stream',
+            description: 'Streaming endpoint for real-time responses',
+            estimatedTime: analysis.estimatedTime.httpApi,
+          },
+        },
+      },
+    });
+  });
+
+  /**
+   * Get Query Routing Configuration
+   * Returns configuration for frontend routing logic
+   */
+  static getRoutingConfig = asyncHandler(async (req: Request, res: Response) => {
+    const config = QueryAnalyzer.getConfiguration();
+
+    res.json({
+      success: true,
+      configuration: config,
+      endpoints: {
+        analyze: {
+          method: 'POST',
+          path: '/mcp/analyze-query',
+          description: 'Analyze a query and get routing recommendations',
+        },
+        chat: {
+          conversational: '/mcp/chat/conversational',
+          streaming: '/mcp/chat/stream',
+        },
+      },
+      guidelines: {
+        claudeDesktop: {
+          when: 'Use for high complexity queries (score > 6)',
+          benefits: ['5-10x faster', 'Better UX', 'Instant tool execution'],
+          setup: 'Claude Desktop must be running with MCP server configured',
+        },
+        httpApi: {
+          when: 'Use for low-medium complexity queries (score <= 6)',
+          benefits: ['No additional software', 'Works anywhere', 'Programmatic access'],
+          tradeoffs: ['Slower for complex queries', 'Network dependent'],
+        },
+      },
+    });
+  });
+
+  /**
+   * Quick Complexity Check
+   * Fast endpoint that just returns complexity level
+   */
+  static quickComplexityCheck = asyncHandler(async (req: Request, res: Response) => {
+    const { query } = req.body;
+
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Query string is required',
+      });
+      return;
+    }
+
+    const complexity = QueryAnalyzer.quickCheck(query);
+    const shouldUseDesktop = QueryAnalyzer.shouldUseDesktop(query);
+
+    res.json({
+      success: true,
+      query,
+      complexity,
+      recommendation: shouldUseDesktop ? 'claude-desktop' : 'http-api',
+      useDesktop: shouldUseDesktop,
+    });
   });
 }

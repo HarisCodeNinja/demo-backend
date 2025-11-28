@@ -31,8 +31,15 @@ router.post('/tools/call', ...mcpAuth, MCPController.callTool);
 router.get('/prompts', ...mcpAuth, MCPController.listPrompts);
 router.post('/prompts/get', ...mcpAuth, MCPController.getPrompt);
 
-// Chat with Claude
 router.post('/chat', MCPController.chat);
+
+router.post('/chat/conversational', MCPController.conversationalChat);
+router.post('/chat/stream', MCPController.streamingChat);
+router.get('/chat/health', MCPController.getChatHealth);
+
+router.post('/analyze-query', MCPController.analyzeQuery);
+router.post('/complexity-check', MCPController.quickComplexityCheck);
+router.get('/routing-config', MCPController.getRoutingConfig);
 
 // Models
 router.get('/models', ...mcpAuth, MCPController.getModels);
