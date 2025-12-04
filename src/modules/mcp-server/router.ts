@@ -27,6 +27,8 @@ router.get('/stream', ...mcpAuth, MCPController.stream);
 router.get('/tools', ...mcpAuth, MCPController.listTools);
 router.post('/tools/call', ...mcpAuth, MCPController.callTool);
 
+router.post('/rpc', validateAccessToken, MCPController.handleMCPRequest);
+
 // Prompts
 router.get('/prompts', ...mcpAuth, MCPController.listPrompts);
 router.post('/prompts/get', ...mcpAuth, MCPController.getPrompt);

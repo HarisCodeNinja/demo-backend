@@ -1240,4 +1240,169 @@ Be concise with tool usage - get the data you need efficiently, then generate th
       useDesktop: shouldUseDesktop,
     });
   });
+
+  /**
+   * Handle MCP JSON-RPC requests
+   * Single endpoint that routes to different MCP methods
+   */
+  static async handleMCPRequest(req: Request, res: Response) {
+    try {
+      const { method, params, id } = req.body;
+
+      console.log(`[MCP-RPC] ${method}`, params ? JSON.stringify(params).substring(0, 100) : '');
+
+      let result: any;
+
+      switch (method) {
+        case 'initialize':
+          result = {
+            protocolVersion: '2024-11-05',
+            capabilities: {
+              tools: {},
+              prompts: {},
+            },
+            serverInfo: {
+              name: 'hrm-mcp-server',
+              version: '1.0.0',
+            },
+          };
+          break;
+
+        case 'tools/list':
+          result = await MCPController.listToolsInternal(req);
+          break;
+
+        case 'tools/call':
+          result = await MCPController.callToolInternal(params.name, params.arguments, req);
+          break;
+
+        case 'prompts/list':
+          result = await MCPController.listPromptsInternal(req);
+          break;
+
+        case 'prompts/get':
+          result = await MCPController.getPromptInternal(params.name, params.arguments, req);
+          break;
+
+        default:
+          return res.status(400).json({
+            jsonrpc: '2.0',
+            id,
+            error: {
+              code: -32601,
+              message: `Method not found: ${method}`,
+            },
+          });
+      }
+
+      return res.json({
+        jsonrpc: '2.0',
+        id,
+        result,
+      });
+    } catch (error: any) {
+      console.error('[MCP-RPC] Error:', error.message);
+      return res.status(500).json({
+        jsonrpc: '2.0',
+        id: req.body.id,
+        error: {
+          code: -32603,
+          message: error.message,
+        },
+      });
+    }
+  }
+
+  /**
+   * Internal helpers
+   */
+  private static async listToolsInternal(req: Request) {
+    const tools = mcpTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    }));
+
+    return { tools };
+  }
+
+  private static async callToolInternal(name: string, args: any, req: Request) {
+    const result = await ToolExecutor.execute(name, args || {}, req, 'claude');
+
+    return {
+      content: result.content || [
+        {
+          type: 'text',
+          text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+        },
+      ],
+    };
+  }
+
+  private static async listPromptsInternal(req: Request) {
+    return {
+      prompts: [
+        {
+          name: 'employee_overview',
+          description: 'Get comprehensive employee overview with metrics',
+          arguments: [
+            {
+              name: 'department',
+              description: 'Optional: Filter by department',
+              required: false,
+            },
+          ],
+        },
+        {
+          name: 'attendance_analysis',
+          description: 'Analyze attendance patterns',
+          arguments: [
+            {
+              name: 'start_date',
+              description: 'Start date (YYYY-MM-DD)',
+              required: true,
+            },
+            {
+              name: 'end_date',
+              description: 'End date (YYYY-MM-DD)',
+              required: true,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private static async getPromptInternal(name: string, args: any, req: Request) {
+    switch (name) {
+      case 'employee_overview':
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: {
+                type: 'text',
+                text: `Provide a comprehensive employee overview${args?.department ? ` for the ${args.department} department` : ''}. Include headcount, recent hires, and key metrics.`,
+              },
+            },
+          ],
+        };
+
+      case 'attendance_analysis':
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: {
+                type: 'text',
+                text: `Analyze attendance from ${args?.start_date} to ${args?.end_date}. Include rates, patterns, and insights.`,
+              },
+            },
+          ],
+        };
+
+      default:
+        throw new Error(`Unknown prompt: ${name}`);
+    }
+  }
 }
