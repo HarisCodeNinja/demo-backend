@@ -67,7 +67,6 @@ export function initializeAttendance(sequelize: Sequelize) {
         { name: 'attendance_status_idx', fields: ['status'], unique: false },
         { name: 'attendance_attendancedate_idx', fields: ['attendance_date'], unique: false },
         { name: 'attendance_employeeid_idx', fields: ['employee_id'], unique: false },
-        { name: 'attendance_employee_date_unique', fields: ['employee_id', 'attendance_date'], unique: true },
         { name: 'u_attendance_attendanceid_pkey', fields: ['attendance_id'], unique: true },
       ],
       tableName: 'attendances',
