@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "hrm-server": {
+      "command": "npm",
+      "args": ["run", "mcp:dev"],
+      "cwd": "C:\\Users\\HarisShahid\\Downloads\\HRM-backend-1217",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

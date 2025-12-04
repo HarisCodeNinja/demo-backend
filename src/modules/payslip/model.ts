@@ -33,12 +33,10 @@ export function initializePayslip(sequelize: Sequelize) {
       payPeriodStart: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
       },
       payPeriodEnd: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
       },
       grossSalary: {
         type: DataTypes.DECIMAL,
@@ -83,7 +81,7 @@ export function initializePayslip(sequelize: Sequelize) {
         { name: 'payslips_generatedbyid_idx', fields: ['generated_by'], unique: false },
         { name: 'payslips_payperiodend_idx', fields: ['pay_period_end'], unique: false },
         { name: 'payslips_payperiodstart_idx', fields: ['pay_period_start'], unique: false },
-        { name: 'payslips_employeeid_idx', fields: ['employee_id'], unique: false },
+        { name: 'payslips_employee_period_unique', fields: ['employee_id', 'pay_period_start', 'pay_period_end'], unique: true },
         { name: 'u_payslips_payslipid_pkey', fields: ['payslip_id'], unique: true },
       ],
       tableName: 'payslips',

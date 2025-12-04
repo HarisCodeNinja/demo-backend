@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(node test-gemini-models.js:*)",
+      "Bash(node list-models.js)",
+      "Bash(npm run mcp:dev:*)",
+      "Bash(timeout 5 npm run mcp:dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

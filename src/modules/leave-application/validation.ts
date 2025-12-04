@@ -18,6 +18,7 @@ export const createLeaveApplicationPayloadValidator = z.object({
 	leaveTypeId: z.uuid("Invalid UUID format"),
 	startDate: z.coerce.date({error: "Start Date is required"}),
 	endDate: z.coerce.date({error: "End Date is required"}),
+	numberOfDay: z.coerce.number({ error: 'Number of day is required' }).positive('Number of day must be positive'),
 	reason: z.string({error: "Reason is required"}),
 	status: z.string({error: "Status is required"}),
 	approvedBy: z.any().nullish(),
@@ -29,9 +30,9 @@ export const updateLeaveApplicationPayloadValidator = (leaveApplicationId: strin
 	leaveTypeId: z.uuid("Invalid UUID format"),
 	startDate: z.coerce.date({error: "Start Date is required"}),
 	endDate: z.coerce.date({error: "End Date is required"}),
+	numberOfDay: z.coerce.number({ error: 'Number of day is required' }).positive('Number of day must be positive'),
 	reason: z.string({error: "Reason is required"}),
 	status: z.string({error: "Status is required"}),
 	approvedBy: z.any().nullish(),
 });
-
 

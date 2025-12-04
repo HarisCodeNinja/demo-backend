@@ -5,6 +5,7 @@ import { Designation } from '../designation/model';
 import { Department } from '../department/model';
 import { Document } from '../document/model';
 import { SalaryStructure } from '../salary-structure/model';
+import { Location } from '../location/model';
 
 export class Employee extends Model<InferAttributes<Employee>, InferCreationAttributes<Employee>> {
   declare employeeId: CreationOptional<string>;
@@ -21,6 +22,7 @@ export class Employee extends Model<InferAttributes<Employee>, InferCreationAttr
   declare employmentEndDate: CreationOptional<Date>;
   declare departmentId: ForeignKey<Department['departmentId']>;
   declare designationId: ForeignKey<Designation['designationId']>;
+  declare locationId: ForeignKey<Location['locationId']>;
   declare reportingManagerId: ForeignKey<Employee['employeeId']>;
   declare status: string;
   declare createdAt: CreationOptional<Date>;
@@ -56,7 +58,6 @@ export function initializeEmployee(sequelize: Sequelize) {
       dateOfBirth: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       gender: {
         type: DataTypes.STRING,
@@ -82,7 +83,6 @@ export function initializeEmployee(sequelize: Sequelize) {
       employmentEndDate: {
         type: DataTypes.DATE,
         allowNull: true,
-        defaultValue: DataTypes.NOW,
       },
       departmentId: {
         type: DataTypes.UUID,
@@ -91,6 +91,10 @@ export function initializeEmployee(sequelize: Sequelize) {
       designationId: {
         type: DataTypes.UUID,
         allowNull: false,
+      },
+      locationId: {
+        type: DataTypes.UUID,
+        allowNull: true,
       },
       reportingManagerId: {
         type: DataTypes.UUID,
@@ -120,7 +124,7 @@ export function initializeEmployee(sequelize: Sequelize) {
         { name: 'employees_status_idx', fields: ['status'], unique: false },
         { name: 'employees_reportingmanagerid_idx', fields: ['reporting_manager_id'], unique: false },
         { name: 'employees_designationid_idx', fields: ['designation_id'], unique: false },
-        { name: 'employees_departmentid_idx', fields: ['department_id'], unique: false },
+        { name: 'employees_department_status_idx', fields: ['department_id', 'status'], unique: false },
         { name: 'employees_employmentstartdate_idx', fields: ['employment_start_date'], unique: false },
         { name: 'employees_personalemail_idx', fields: ['personal_email'], unique: false },
         { name: 'employees_lastname_idx', fields: ['last_name'], unique: false },
@@ -151,6 +155,10 @@ export function establishRelationsEmployee() {
   Employee.belongsTo(Employee, {
     foreignKey: 'reportingManagerId',
     as: 'reportingManager',
+  });
+  Employee.belongsTo(Location, {
+    foreignKey: 'locationId',
+    as: 'location',
   });
   Employee.hasMany(Document, {
     foreignKey: 'employeeId',

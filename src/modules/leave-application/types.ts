@@ -3,6 +3,7 @@ export interface CreateLeaveApplicationInput {
 	leaveTypeId: string;
 	startDate: Date;
 	endDate: Date;
+	numberOfDay: number;
 	reason: string;
 	status: string;
 	approvedBy?: any;
@@ -13,6 +14,7 @@ export interface UpdateLeaveApplicationInput {
 	leaveTypeId: string;
 	startDate: Date;
 	endDate: Date;
+	numberOfDay: number;
 	reason: string;
 	status: string;
 	approvedBy?: any;

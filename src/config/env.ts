@@ -21,6 +21,10 @@ const EnvSchema = z.object({
   JWT_EXPIRATION: z.string().default('1d'),
 
   CORS_ORIGINS: z.string().default(''),
+
+  // AI / MCP Configuration
+  CLAUDE_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;
