@@ -3,7 +3,6 @@ export interface CreateJobOpeningInput {
 	description: string;
 	departmentId: string;
 	designationId: string;
-	locationId: string;
 	requiredExperience: number;
 	status: string;
 	publishedAt?: Date;
@@ -15,7 +14,6 @@ export interface UpdateJobOpeningInput {
 	description: string;
 	departmentId: string;
 	designationId: string;
-	locationId: string;
 	requiredExperience: number;
 	status: string;
 	publishedAt?: Date;

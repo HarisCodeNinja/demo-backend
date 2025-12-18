@@ -59,12 +59,6 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					},
 					{
 						in: 'query',
-						name: 'locationId',
-						description: 'Filter by locationId',
-						schema: { type: 'string' }
-					},
-					{
-						in: 'query',
 						name: 'requiredExperience',
 						description: 'Filter by requiredExperience',
 						schema: { type: 'integer' }
@@ -506,7 +500,6 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					description: { type: 'string', description: 'description' },
 					departmentId: { type: 'string', description: 'departmentId' },
 					designationId: { type: 'string', description: 'designationId' },
-					locationId: { type: 'string', description: 'locationId' },
 					requiredExperience: { type: 'integer', description: 'requiredExperience' },
 					status: { type: 'string', description: 'status' },
 					publishedAt: { type: 'string', format: 'date-time', description: 'publishedAt' },
@@ -515,7 +508,7 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					createdAt: { type: 'string', format: 'date-time', description: 'createdAt' },
 					updatedAt: { type: 'string', format: 'date-time', description: 'updatedAt' }
 				},
-				required: ['jobOpeningId', ' title', ' description', ' departmentId', ' designationId', ' locationId', ' requiredExperience', ' status', ' createdBy', ' createdAt', ' updatedAt']
+				required: ['jobOpeningId', ' title', ' description', ' departmentId', ' designationId', ' requiredExperience', ' status', ' createdBy', ' createdAt', ' updatedAt']
 			},
 
 			JobOpeningListResponse: {
@@ -559,7 +552,6 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					description: { type: 'string', description: 'description' },
 					departmentId: { type: 'string', description: 'departmentId' },
 					designationId: { type: 'string', description: 'designationId' },
-					locationId: { type: 'string', description: 'locationId' },
 					requiredExperience: { type: 'integer', description: 'requiredExperience' },
 					status: { type: 'string', description: 'status' },
 					publishedAt: { type: 'string', format: 'date-time', nullable: true, description: 'publishedAt' },
@@ -577,7 +569,6 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					description: { type: 'string', description: 'description' },
 					departmentId: { type: 'string', description: 'departmentId' },
 					designationId: { type: 'string', description: 'designationId' },
-					locationId: { type: 'string', description: 'locationId' },
 					requiredExperience: { type: 'integer', description: 'requiredExperience' },
 					status: { type: 'string', description: 'status' },
 					publishedAt: { type: 'string', format: 'date-time', nullable: true, description: 'publishedAt' },
@@ -592,13 +583,12 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					description: { type: 'string', description: 'description' },
 					departmentId: { type: 'string', description: 'departmentId' },
 					designationId: { type: 'string', description: 'designationId' },
-					locationId: { type: 'string', description: 'locationId' },
 					requiredExperience: { type: 'integer', description: 'requiredExperience', example: 123 },
 					status: { type: 'string', description: 'status', example: 'status Option' },
 					publishedAt: { type: 'string', format: 'date-time', description: 'publishedAt', example: '2024-01-01T12:00:00Z' },
 					closedAt: { type: 'string', format: 'date-time', description: 'closedAt', example: '2024-01-01T12:00:00Z' }
 				},
-				required: ['title', 'description', 'departmentId', 'designationId', 'locationId', 'requiredExperience', 'status']
+				required: ['title', 'description', 'departmentId', 'designationId', 'requiredExperience', 'status']
 			},
 
 			JobOpeningCreateResponse: {
@@ -615,13 +605,12 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 					description: { type: 'string', description: 'description' },
 					departmentId: { type: 'string', description: 'departmentId' },
 					designationId: { type: 'string', description: 'designationId' },
-					locationId: { type: 'string', description: 'locationId' },
 					requiredExperience: { type: 'integer', description: 'requiredExperience' },
 					status: { type: 'string', description: 'status' },
 					publishedAt: { type: 'string', format: 'date-time', description: 'publishedAt' },
 					closedAt: { type: 'string', format: 'date-time', description: 'closedAt' }
 				},
-				required: ['title', 'description', 'departmentId', 'designationId', 'locationId', 'requiredExperience', 'status']
+				required: ['title', 'description', 'departmentId', 'designationId', 'requiredExperience', 'status']
 			},
 
 			JobOpeningUpdateResponse: {
@@ -635,7 +624,6 @@ const defaultAreaJobOpeningSwagger: SwaggerDefinition = {
 							description: { type: 'string', description: 'description' },
 							departmentId: { type: 'string', description: 'departmentId' },
 							designationId: { type: 'string', description: 'designationId' },
-							locationId: { type: 'string', description: 'locationId' },
 							requiredExperience: { type: 'integer', description: 'requiredExperience' },
 							status: { type: 'string', description: 'status' },
 							publishedAt: { type: 'string', format: 'date-time', nullable: true, description: 'publishedAt' },

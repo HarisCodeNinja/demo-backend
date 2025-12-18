@@ -16,7 +16,6 @@ import {
 import { Employee } from '../employee/model';
 import { Department } from '../department/model';
 import { Designation } from '../designation/model';
-import { Location } from '../location/model';
 import { Attendance } from '../attendance/model';
 import { LeaveApplication } from '../leave-application/model';
 import { JobOpening } from '../job-opening/model';
@@ -33,18 +32,6 @@ export class ToolExecutor {
   private static readonly MAX_RESPONSE_STRING_LENGTH = 200;
   private static readonly DEFAULT_LIST_LIMIT = 50;
   private static readonly RESULT_EXPORT_DIR = path.join(process.cwd(), 'tmp', 'mcp-results');
-  private static employeeLocationSupported: boolean | null = null;
-
-  private static hasEmployeeLocationAssociation(): boolean {
-    if (this.employeeLocationSupported === false) {
-      return false;
-    }
-    const associationExists = Boolean((Employee as any)?.associations?.location);
-    const attributeExists = Boolean((Employee as any)?.rawAttributes?.locationId);
-    const supported = associationExists && attributeExists;
-    this.employeeLocationSupported = supported;
-    return supported;
-  }
 
   /**
    * Create standardized response format with data and meta
@@ -177,35 +164,11 @@ export class ToolExecutor {
     }
   }
 
-  private static buildEmployeeIncludes(includeLocation: boolean = true) {
-    const baseIncludes: any[] = [
+  private static buildEmployeeIncludes() {
+    return [
       { model: Department, as: 'department' },
       { model: Designation, as: 'designation' },
     ];
-
-    if (includeLocation && this.hasEmployeeLocationAssociation()) {
-      baseIncludes.push({ model: Location, as: 'location' });
-    }
-
-    return baseIncludes;
-  }
-
-  private static isEmployeeLocationError(error: any): boolean {
-    const message = (error?.message || '').toLowerCase();
-    return (
-      message.includes('location is not associated') ||
-      message.includes('location_id') ||
-      message.includes('column "location') ||
-      message.includes('location data')
-    );
-  }
-
-  private static disableEmployeeLocationSupport() {
-    if (this.employeeLocationSupported === false) {
-      return;
-    }
-    console.warn('[MCP] Disabling employee location support due to schema mismatch');
-    this.employeeLocationSupported = false;
   }
 
   /**
@@ -312,27 +275,12 @@ export class ToolExecutor {
       whereClause.employeeId = identifier;
     }
 
-    const includesWithLocation = this.buildEmployeeIncludes(true);
+    const includes = this.buildEmployeeIncludes();
 
-    let employee;
-    try {
-      employee = await Employee.findOne({
-        where: whereClause,
-        include: includesWithLocation,
-      });
-    } catch (error: any) {
-      if (this.isEmployeeLocationError(error)) {
-        console.warn('[MCP] Employee location include failed, retrying without location data');
-        this.disableEmployeeLocationSupport();
-        const fallbackIncludes = this.buildEmployeeIncludes(false);
-        employee = await Employee.findOne({
-          where: whereClause,
-          include: fallbackIncludes,
-        });
-      } else {
-        throw error;
-      }
-    }
+    const employee = await Employee.findOne({
+      where: whereClause,
+      include: includes,
+    });
 
     if (!employee) {
       return {
@@ -445,34 +393,16 @@ export class ToolExecutor {
     if (filters) {
       if (filters.departmentId) whereClause.departmentId = filters.departmentId;
       if (filters.designationId) whereClause.designationId = filters.designationId;
-      if (filters.locationId) whereClause.locationId = filters.locationId;
     }
 
-    const includesWithLocation = this.buildEmployeeIncludes(true);
+    const includes = this.buildEmployeeIncludes();
 
-    let employees;
-    try {
-      employees = await Employee.findAll({
-        where: whereClause,
-        include: includesWithLocation,
-        limit: effectiveLimit,
-        order: [['firstName', 'ASC'], ['lastName', 'ASC']],
-      });
-    } catch (error: any) {
-      if (this.isEmployeeLocationError(error)) {
-        console.warn('[MCP] Employee search failed due to location join; retrying without location');
-        this.disableEmployeeLocationSupport();
-        const fallbackIncludes = this.buildEmployeeIncludes(false);
-        employees = await Employee.findAll({
-          where: whereClause,
-          include: fallbackIncludes,
-          limit: effectiveLimit,
-          order: [['firstName', 'ASC'], ['lastName', 'ASC']],
-        });
-      } else {
-        throw error;
-      }
-    }
+    const employees = await Employee.findAll({
+      where: whereClause,
+      include: includes,
+      limit: effectiveLimit,
+      order: [['firstName', 'ASC'], ['lastName', 'ASC']],
+    });
 
     const data = {
       query: trimmedQuery,

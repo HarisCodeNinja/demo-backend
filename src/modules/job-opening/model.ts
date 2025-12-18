@@ -2,7 +2,6 @@
 import { Sequelize, Model, DataTypes, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute } from 'sequelize';
 import { Designation } from '../designation/model';
 import { Department } from '../department/model';
-import { Location } from '../location/model';
 
 export class JobOpening extends Model<InferAttributes<JobOpening>, InferCreationAttributes<JobOpening>> {
   declare jobOpeningId: CreationOptional<string>;
@@ -10,7 +9,6 @@ export class JobOpening extends Model<InferAttributes<JobOpening>, InferCreation
   declare description: string;
   declare departmentId: ForeignKey<Department['departmentId']>;
   declare designationId: ForeignKey<Designation['designationId']>;
-  declare locationId: ForeignKey<Location['locationId']>;
   declare requiredExperience: number;
   declare status: string;
   declare publishedAt: CreationOptional<Date>;
@@ -42,10 +40,6 @@ export function initializeJobOpening(sequelize: Sequelize) {
         allowNull: false,
       },
       designationId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-      },
-      locationId: {
         type: DataTypes.UUID,
         allowNull: false,
       },
@@ -92,7 +86,6 @@ export function initializeJobOpening(sequelize: Sequelize) {
         { name: 'jobopenings_publishedat_idx', fields: ['published_at'], unique: false },
         { name: 'jobopenings_status_idx', fields: ['status'], unique: false },
         { name: 'jobopenings_status_department_idx', fields: ['status', 'department_id'], unique: false },
-        { name: 'jobopenings_status_location_idx', fields: ['status', 'location_id'], unique: false },
         { name: 'jobopenings_designationid_idx', fields: ['designation_id'], unique: false },
         { name: 'jobopenings_title_idx', fields: ['title'], unique: false },
         { name: 'u_jobopenings_jobopeningid_pkey', fields: ['job_opening_id'], unique: true },
@@ -111,9 +104,5 @@ export function establishRelationsJobOpening() {
   JobOpening.belongsTo(Department, {
     foreignKey: 'departmentId',
     as: 'department',
-  });
-  JobOpening.belongsTo(Location, {
-    foreignKey: 'locationId',
-    as: 'location',
   });
 }

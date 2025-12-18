@@ -5,7 +5,6 @@ import { Designation } from '../designation/model';
 import { Department } from '../department/model';
 import { Document } from '../document/model';
 import { SalaryStructure } from '../salary-structure/model';
-import { Location } from '../location/model';
 
 export class Employee extends Model<InferAttributes<Employee>, InferCreationAttributes<Employee>> {
   declare employeeId: CreationOptional<string>;
@@ -22,7 +21,6 @@ export class Employee extends Model<InferAttributes<Employee>, InferCreationAttr
   declare employmentEndDate: CreationOptional<Date>;
   declare departmentId: ForeignKey<Department['departmentId']>;
   declare designationId: ForeignKey<Designation['designationId']>;
-  declare locationId: ForeignKey<Location['locationId']>;
   declare reportingManagerId: ForeignKey<Employee['employeeId']>;
   declare status: string;
   declare createdAt: CreationOptional<Date>;
@@ -92,10 +90,6 @@ export function initializeEmployee(sequelize: Sequelize) {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      locationId: {
-        type: DataTypes.UUID,
-        allowNull: true,
-      },
       reportingManagerId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -155,10 +149,6 @@ export function establishRelationsEmployee() {
   Employee.belongsTo(Employee, {
     foreignKey: 'reportingManagerId',
     as: 'reportingManager',
-  });
-  Employee.belongsTo(Location, {
-    foreignKey: 'locationId',
-    as: 'location',
   });
   Employee.hasMany(Document, {
     foreignKey: 'employeeId',
