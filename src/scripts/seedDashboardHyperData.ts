@@ -76,26 +76,17 @@ async function seed(shouldWipe: boolean, passwordHash: string) {
   await sequelize.transaction(async (transaction) => {
     await truncateTables(transaction, shouldWipe);
 
-    const locations = await Location.bulkCreate(
-      [
-        { locationName: 'New York HQ' },
-        { locationName: 'London Remote' },
-        { locationName: 'Singapore Hub' },
-      ],
-      { transaction, returning: true },
-    );
+    const locations = await Location.bulkCreate([{ locationName: 'New York HQ' }, { locationName: 'London Remote' }, { locationName: 'Singapore Hub' }], {
+      transaction,
+      returning: true,
+    });
     const locationMap: Record<string, Location> = {};
     locations.forEach((loc) => {
       locationMap[loc.locationName] = loc;
     });
 
     const departments = await Department.bulkCreate(
-      [
-        { departmentName: 'Engineering' },
-        { departmentName: 'Product' },
-        { departmentName: 'People Operations' },
-        { departmentName: 'Analytics' },
-      ],
+      [{ departmentName: 'Engineering' }, { departmentName: 'Product' }, { departmentName: 'People Operations' }, { departmentName: 'Analytics' }],
       { transaction, returning: true },
     );
     const departmentMap: Record<string, Department> = {};
@@ -417,7 +408,6 @@ async function seed(shouldWipe: boolean, passwordHash: string) {
           description: job.description,
           departmentId: departmentMap[job.department].departmentId,
           designationId: designationMap[job.designation].designationId,
-          locationId: locationMap[job.location].locationId,
           requiredExperience: job.requiredExperience,
           status: job.status,
           publishedAt: daysAgo(job.publishedOffset),
@@ -723,7 +713,13 @@ async function seed(shouldWipe: boolean, passwordHash: string) {
       LeaveApplication.count({ transaction }),
     ]);
 
-    console.info('Seed summary', { employees: employeeCount, attendance: attendanceCount, jobOpenings: jobOpeningCount, candidates: candidateCount, leaveApplications: leaveCount });
+    console.info('Seed summary', {
+      employees: employeeCount,
+      attendance: attendanceCount,
+      jobOpenings: jobOpeningCount,
+      candidates: candidateCount,
+      leaveApplications: leaveCount,
+    });
   });
 }
 
