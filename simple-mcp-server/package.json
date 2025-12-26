@@ -1,0 +1,20 @@
+{
+  "name": "simple-mcp-server",
+  "version": "1.0.0",
+  "description": "A minimal MCP server with 2 tools and RPC-only support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "proxy": "node stdio-proxy.js",
+    "test": "node test-client.js"
+  },
+  "keywords": ["mcp", "claude", "simple", "minimal"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "node-fetch": "^2.7.0"
+  }
+}
