@@ -5,8 +5,52 @@
  * This is a simplified version without database - uses mock data
  */
 
+import { Request } from 'express';
+
+// Type definitions
+interface Employee {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  departmentId: string;
+  departmentName: string;
+  designationId: string;
+  designationName: string;
+  status: 'active' | 'inactive';
+}
+
+interface Department {
+  departmentId: string;
+  departmentName: string;
+  description: string;
+  createdAt: string;
+  employeeCount?: number;
+}
+
+interface SearchEmployeesArgs {
+  query?: string;
+  filters?: {
+    departmentId?: string;
+    status?: 'active' | 'inactive';
+  };
+  limit?: number;
+}
+
+interface GetDepartmentsArgs {
+  includeEmployeeCount?: boolean;
+}
+
+interface ToolResponse {
+  content: Array<{
+    type: string;
+    text: string;
+  }>;
+  isError: boolean;
+}
+
 // Mock database data
-const mockEmployees = [
+const mockEmployees: Employee[] = [
   {
     employeeId: '550e8400-e29b-41d4-a716-446655440001',
     firstName: 'John',
@@ -64,7 +108,7 @@ const mockEmployees = [
   },
 ];
 
-const mockDepartments = [
+const mockDepartments: Department[] = [
   {
     departmentId: '650e8400-e29b-41d4-a716-446655440001',
     departmentName: 'Engineering',
@@ -88,7 +132,7 @@ const mockDepartments = [
 /**
  * Search employees
  */
-async function searchEmployees(args) {
+async function searchEmployees(args: SearchEmployeesArgs): Promise<ToolResponse> {
   const { query = '', filters = {}, limit = 20 } = args;
 
   console.log('[Tool] searchEmployees:', { query, filters, limit });
@@ -141,13 +185,13 @@ async function searchEmployees(args) {
 /**
  * Get departments
  */
-async function getDepartments(args) {
+async function getDepartments(args: GetDepartmentsArgs): Promise<ToolResponse> {
   const { includeEmployeeCount = true } = args;
 
   console.log('[Tool] getDepartments:', { includeEmployeeCount });
 
   const departments = mockDepartments.map((dept) => {
-    const result = { ...dept };
+    const result: Department = { ...dept };
 
     if (includeEmployeeCount) {
       result.employeeCount = mockEmployees.filter(
@@ -176,7 +220,7 @@ async function getDepartments(args) {
 /**
  * Create standardized tool response
  */
-function createToolResponse(data, message, meta = {}) {
+function createToolResponse(data: any, message?: string, meta: Record<string, any> = {}): ToolResponse {
   return {
     content: [
       {
@@ -201,7 +245,7 @@ function createToolResponse(data, message, meta = {}) {
 /**
  * Main tool executor
  */
-async function execute(toolName, args, req) {
+export async function execute(toolName: string, args: Record<string, any>, req: Request): Promise<ToolResponse> {
   try {
     console.log(`[ToolExecutor] Executing: ${toolName}`);
 
@@ -216,7 +260,8 @@ async function execute(toolName, args, req) {
         throw new Error(`Unknown tool: ${toolName}`);
     }
   } catch (error) {
-    console.error(`[ToolExecutor] Error executing ${toolName}:`, error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[ToolExecutor] Error executing ${toolName}:`, errorMessage);
 
     return {
       content: [
@@ -225,7 +270,7 @@ async function execute(toolName, args, req) {
           text: JSON.stringify(
             {
               error: true,
-              message: error.message,
+              message: errorMessage,
               tool: toolName,
             },
             null,
@@ -237,7 +282,3 @@ async function execute(toolName, args, req) {
     };
   }
 }
-
-module.exports = {
-  execute,
-};

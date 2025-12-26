@@ -2,17 +2,17 @@
  * Simple MCP Server - Mini Version
  *
  * A minimal MCP implementation mirroring the real HRM MCP server structure:
- * - Separate tools.js (tool definitions)
- * - Separate toolExecutor.js (tool execution logic)
+ * - Separate tools.ts (tool definitions)
+ * - Separate toolExecutor.ts (tool execution logic)
  * - OAuth token authentication
  * - RPC endpoint only
  * - 2 real tools from HRM system
  */
 
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const { tools } = require('./tools');
-const { execute: executeTool } = require('./toolExecutor');
+import express, { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { tools } from './tools';
+import { execute as executeTool } from './toolExecutor';
 
 const app = express();
 app.use(express.json());
@@ -23,30 +23,70 @@ const JWT_SECRET = process.env.JWT_SECRET || 'simple-mcp-secret-key';
 const CLIENT_ID = 'simple-mcp-client';
 const CLIENT_SECRET = 'simple-mcp-secret-123';
 
+// Type definitions
+interface JWTPayload {
+  client_id: string;
+  type: string;
+  roles: string[];
+  iat: number;
+}
+
+interface AuthRequest extends Request {
+  user?: JWTPayload;
+}
+
+interface OAuthTokenRequest {
+  grant_type: string;
+  client_id: string;
+  client_secret: string;
+}
+
+interface RPCRequest {
+  jsonrpc: string;
+  id: string | number | null;
+  method: string;
+  params?: {
+    name?: string;
+    arguments?: Record<string, any>;
+  };
+}
+
+interface RPCResponse {
+  jsonrpc: string;
+  id: string | number | null;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
 // ============================================
 // MIDDLEWARE - AUTH
 // ============================================
 
-function authenticateToken(req, res, next) {
+function authenticateToken(req: AuthRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({
+    res.status(401).json({
       error: 'unauthorized',
       message: 'No token provided',
     });
+    return;
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET as string) as JWTPayload;
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(403).json({
+    res.status(403).json({
       error: 'forbidden',
       message: 'Invalid or expired token',
     });
+    return;
   }
 }
 
@@ -58,37 +98,39 @@ function authenticateToken(req, res, next) {
  * POST /oauth/token
  * Get OAuth access token using client credentials
  */
-app.post('/oauth/token', (req, res) => {
+app.post('/oauth/token', (req: Request<{}, {}, OAuthTokenRequest>, res: Response) => {
   const { grant_type, client_id, client_secret } = req.body;
 
   console.log('[OAuth] Token request:', { grant_type, client_id });
 
   // Validate grant type
   if (grant_type !== 'client_credentials') {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'unsupported_grant_type',
       error_description: 'Only client_credentials grant type is supported',
     });
+    return;
   }
 
   // Validate credentials
   if (client_id !== CLIENT_ID || client_secret !== CLIENT_SECRET) {
     console.log('[OAuth] Invalid credentials');
-    return res.status(401).json({
+    res.status(401).json({
       error: 'invalid_client',
       error_description: 'Invalid client credentials',
     });
+    return;
   }
 
   // Generate JWT token
-  const payload = {
+  const payload: JWTPayload = {
     client_id: client_id,
     type: 'mcp_client',
     roles: ['user:manager', 'user:hr'],
     iat: Math.floor(Date.now() / 1000),
   };
 
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: '1h' });
 
   console.log('[OAuth] ✅ Token generated successfully');
 
@@ -103,24 +145,25 @@ app.post('/oauth/token', (req, res) => {
  * POST /rpc
  * JSON-RPC 2.0 endpoint for MCP operations
  */
-app.post('/rpc', authenticateToken, async (req, res) => {
-  const { jsonrpc, id, method, params } = req.body;
+app.post('/rpc', authenticateToken, async (req: AuthRequest, res: Response) => {
+  const { jsonrpc, id, method, params } = req.body as RPCRequest;
 
   console.log(`[RPC] Request: ${method}`, params ? JSON.stringify(params).substring(0, 100) : '');
 
   // Validate JSON-RPC version
   if (jsonrpc !== '2.0') {
-    return res.status(400).json({
+    res.status(400).json({
       jsonrpc: '2.0',
       id: id || null,
       error: {
         code: -32600,
         message: 'Invalid Request: jsonrpc must be "2.0"',
       },
-    });
+    } as RPCResponse);
+    return;
   }
 
-  let result;
+  let result: any;
 
   try {
     switch (method) {
@@ -166,14 +209,15 @@ app.post('/rpc', authenticateToken, async (req, res) => {
         break;
 
       default:
-        return res.status(400).json({
+        res.status(400).json({
           jsonrpc: '2.0',
           id,
           error: {
             code: -32601,
             message: `Method not found: ${method}`,
           },
-        });
+        } as RPCResponse);
+        return;
     }
 
     console.log(`[RPC] ✅ Success: ${method}`);
@@ -182,18 +226,19 @@ app.post('/rpc', authenticateToken, async (req, res) => {
       jsonrpc: '2.0',
       id,
       result,
-    });
+    } as RPCResponse);
   } catch (error) {
-    console.error(`[RPC] ❌ Error: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[RPC] ❌ Error: ${errorMessage}`);
 
     res.status(500).json({
       jsonrpc: '2.0',
       id,
       error: {
         code: -32603,
-        message: error.message,
+        message: errorMessage,
       },
-    });
+    } as RPCResponse);
   }
 });
 
@@ -201,7 +246,7 @@ app.post('/rpc', authenticateToken, async (req, res) => {
  * GET /health
  * Health check endpoint
  */
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     server: 'simple-mcp-server',
@@ -238,10 +283,10 @@ app.listen(PORT, () => {
   console.log('   GET  /health       - Health check');
   console.log('');
   console.log('📂 File Structure:');
-  console.log('   server.js         - Main server (routes & auth)');
-  console.log('   tools.js          - Tool definitions');
-  console.log('   toolExecutor.js   - Tool execution logic');
+  console.log('   server.ts         - Main server (routes & auth)');
+  console.log('   tools.ts          - Tool definitions');
+  console.log('   toolExecutor.ts   - Tool execution logic');
   console.log('');
 });
 
-module.exports = app;
+export default app;

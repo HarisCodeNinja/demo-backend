@@ -4,7 +4,26 @@
  * Define all available tools with their schemas
  */
 
-const tools = [
+export interface ToolProperty {
+  type: string;
+  description: string;
+  default?: any;
+  properties?: Record<string, ToolProperty>;
+}
+
+export interface ToolInputSchema {
+  type: string;
+  properties: Record<string, ToolProperty>;
+  required: string[];
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  inputSchema: ToolInputSchema;
+}
+
+export const tools: Tool[] = [
   {
     name: 'search_employees',
     description: 'Search employees by name or email. Returns employee list with department and designation info.',
@@ -59,14 +78,14 @@ const tools = [
 /**
  * Get tool by name
  */
-function getToolByName(name) {
+export function getToolByName(name: string): Tool | undefined {
   return tools.find((tool) => tool.name === name);
 }
 
 /**
  * Validate tool arguments against schema
  */
-function validateToolArguments(tool, args) {
+export function validateToolArguments(tool: Tool, args: Record<string, any>): boolean {
   try {
     const schema = tool.inputSchema;
     if (schema.required && Array.isArray(schema.required)) {
@@ -81,9 +100,3 @@ function validateToolArguments(tool, args) {
     return false;
   }
 }
-
-module.exports = {
-  tools,
-  getToolByName,
-  validateToolArguments,
-};

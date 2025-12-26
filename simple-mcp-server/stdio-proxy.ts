@@ -6,27 +6,52 @@
  * This proxy connects Claude Desktop to the remote MCP server via RPC
  */
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const {
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} = require('@modelcontextprotocol/sdk/types.js');
-const fetch = require('node-fetch');
+  CallToolRequest,
+} from '@modelcontextprotocol/sdk/types.js';
+import fetch from 'node-fetch';
 
 // Configuration
 const REMOTE_SERVER = process.env.REMOTE_MCP_URL || 'http://localhost:3001';
 const CLIENT_ID = process.env.MCP_CLIENT_ID || 'simple-mcp-client';
 const CLIENT_SECRET = process.env.MCP_CLIENT_SECRET || 'simple-mcp-secret-123';
 
-let accessToken = null;
+let accessToken: string | null = null;
 let requestId = 0;
+
+// Type definitions
+interface OAuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface RPCRequest {
+  jsonrpc: string;
+  id: number;
+  method: string;
+  params?: any;
+}
+
+interface RPCResponse {
+  jsonrpc: string;
+  id: number;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
 
 // ============================================
 // OAUTH TOKEN MANAGEMENT
 // ============================================
 
-async function getAccessToken() {
+async function getAccessToken(): Promise<string> {
   if (accessToken) return accessToken;
 
   console.error('[Proxy] Getting access token...');
@@ -46,7 +71,7 @@ async function getAccessToken() {
     throw new Error(`Token request failed: ${response.status} - ${error}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as OAuthTokenResponse;
   accessToken = data.access_token;
 
   console.error('[Proxy] ✅ Token obtained');
@@ -64,7 +89,7 @@ async function getAccessToken() {
 // RPC CALL HANDLER
 // ============================================
 
-async function rpcCall(method, params) {
+async function rpcCall(method: string, params?: any): Promise<any> {
   const token = await getAccessToken();
   const id = ++requestId;
 
@@ -81,7 +106,7 @@ async function rpcCall(method, params) {
       id,
       method,
       params,
-    }),
+    } as RPCRequest),
   });
 
   if (!response.ok) {
@@ -89,7 +114,7 @@ async function rpcCall(method, params) {
     throw new Error(`RPC failed: ${response.status} - ${error}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as RPCResponse;
 
   if (data.error) {
     throw new Error(`RPC error: ${data.error.message}`);
@@ -123,7 +148,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Call tool handler
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
   const result = await rpcCall('tools/call', {
     name: request.params.name,
     arguments: request.params.arguments,
@@ -135,7 +160,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // START STDIO SERVER
 // ============================================
 
-async function main() {
+async function main(): Promise<void> {
   console.error('');
   console.error('═══════════════════════════════════════');
   console.error('   Simple MCP STDIO Proxy Starting');
