@@ -1,12 +1,10 @@
 {
   "name": "simple-mcp-server",
   "version": "1.0.0",
-  "description": "A minimal MCP server with 2 tools and RPC-only support",
-  "main": "dist/server.js",
+  "description": "A minimal MCP server with 2 tools - Routes integrated into main HRM app",
+  "main": "dist/router.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/server.js",
-    "dev": "ts-node server.ts",
     "proxy": "npm run build && node dist/stdio-proxy.js",
     "dev:proxy": "ts-node stdio-proxy.ts",
     "test": "node test-client.js"

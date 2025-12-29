@@ -26,7 +26,7 @@ export interface Tool {
 export const tools: Tool[] = [
   {
     name: 'search_employees',
-    description: 'Search employees by name or email. Returns employee list with department and designation info.',
+    description: 'Get paginated employee list from the real HRM database. Returns employees with department and designation info.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -49,10 +49,15 @@ export const tools: Tool[] = [
             },
           },
         },
-        limit: {
+        pageSize: {
           type: 'number',
-          description: 'Maximum number of results (default 20)',
+          description: 'Maximum number of results per page (default 20, max 100)',
           default: 20,
+        },
+        page: {
+          type: 'number',
+          description: 'Page number for pagination (default 0)',
+          default: 0,
         },
       },
       required: [],
@@ -60,14 +65,24 @@ export const tools: Tool[] = [
   },
   {
     name: 'get_departments',
-    description: 'Get list of all departments in the organization with employee counts.',
+    description: 'Get paginated department list from the real HRM database.',
     inputSchema: {
       type: 'object',
       properties: {
         includeEmployeeCount: {
           type: 'boolean',
-          description: 'Include number of employees in each department',
+          description: 'Include number of active employees in each department',
           default: true,
+        },
+        page: {
+          type: 'number',
+          description: 'Page number for pagination (default 0)',
+          default: 0,
+        },
+        pageSize: {
+          type: 'number',
+          description: 'Maximum number of results per page (default 20, max 100)',
+          default: 20,
         },
       },
       required: [],
@@ -80,23 +95,4 @@ export const tools: Tool[] = [
  */
 export function getToolByName(name: string): Tool | undefined {
   return tools.find((tool) => tool.name === name);
-}
-
-/**
- * Validate tool arguments against schema
- */
-export function validateToolArguments(tool: Tool, args: Record<string, any>): boolean {
-  try {
-    const schema = tool.inputSchema;
-    if (schema.required && Array.isArray(schema.required)) {
-      for (const field of schema.required) {
-        if (!(field in args)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
 }

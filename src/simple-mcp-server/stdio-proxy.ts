@@ -8,11 +8,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  CallToolRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 import fetch from 'node-fetch';
 
 // Configuration
@@ -77,17 +73,16 @@ async function getAccessToken(): Promise<string> {
   console.error('[Proxy] ✅ Token obtained');
 
   // Auto-refresh before expiry
-  setTimeout(() => {
-    accessToken = null;
-    console.error('[Proxy] Token expired, will refresh on next request');
-  }, (data.expires_in - 60) * 1000);
+  setTimeout(
+    () => {
+      accessToken = null;
+      console.error('[Proxy] Token expired, will refresh on next request');
+    },
+    (data.expires_in - 60) * 1000,
+  );
 
   return accessToken;
 }
-
-// ============================================
-// RPC CALL HANDLER
-// ============================================
 
 async function rpcCall(method: string, params?: any): Promise<any> {
   const token = await getAccessToken();
@@ -125,10 +120,6 @@ async function rpcCall(method: string, params?: any): Promise<any> {
   return data.result;
 }
 
-// ============================================
-// MCP SERVER SETUP
-// ============================================
-
 const server = new Server(
   {
     name: 'simple-mcp-proxy',
@@ -138,7 +129,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 // List tools handler
@@ -155,10 +146,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
   });
   return result;
 });
-
-// ============================================
-// START STDIO SERVER
-// ============================================
 
 async function main(): Promise<void> {
   console.error('');
