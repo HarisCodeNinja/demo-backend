@@ -12,6 +12,21 @@ export const fetchEmployeeList = async (params: QueryEmployeeInput) => {
   const pageSize = Math.min(params.pageSize || 10, 1000);
   const curPage = params.page || 0;
 
+  const whereClause: any = {};
+  if (params.searchTerm) {
+    whereClause[Op.or] = [
+      { firstName: { [Op.iLike]: `%${params.searchTerm}%` } },
+      { lastName: { [Op.iLike]: `%${params.searchTerm}%` } },
+      { personalEmail: { [Op.iLike]: `%${params.searchTerm}%` } },
+    ];
+  }
+  if (params.departmentId) {
+    whereClause.departmentId = params.departmentId;
+  }
+  if (params.status) {
+    whereClause.status = params.status;
+  }
+
   const { count, rows } = await Employee.findAndCountAll({
     attributes: [
       // employeeId, userId, employeeUniqueId, firstName, lastName, dateOfBirth, gender, phoneNumber, address, personalEmail, employmentStartDate, employmentEndDate, departmentId, designationId, reportingManagerId, status, createdAt, updatedAt

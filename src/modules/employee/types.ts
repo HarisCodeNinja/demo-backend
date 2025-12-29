@@ -35,5 +35,8 @@ export interface UpdateEmployeeInput {
 export interface QueryEmployeeInput {
 	page : number;
 	pageSize: number;
+	searchTerm?: string;
+	departmentId?: string;
+	status?: string;
 
 }

@@ -14,24 +14,18 @@ export const tools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: {
+        searchTerm: {
           type: 'string',
           description: 'Search query (name or email). Leave empty for all employees.',
           default: '',
         },
-        filters: {
-          type: 'object',
-          description: 'Optional filters',
-          properties: {
-            departmentId: {
-              type: 'string',
-              description: 'Filter by department UUID',
+        departmentId: {
+            type: 'string',
+            description: 'Filter by department UUID',
             },
-            status: {
-              type: 'string',
-              description: 'Filter by status (active, inactive)',
-            },
-          },
+        status: {
+          type: 'string',
+          description: 'Filter by status (active, inactive)',
         },
         pageSize: {
           type: 'number',
