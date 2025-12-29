@@ -3,20 +3,10 @@
  * JWT authentication middleware for MCP routes
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-
-export interface JWTPayload {
-  client_id: string;
-  type: string;
-  roles: string[];
-  iat: number;
-}
-
-export interface AuthRequest extends Request {
-  user?: JWTPayload;
-}
+import { JWTPayload, AuthRequest } from './types';
 
 /**
  * Authenticate JWT token from Authorization header

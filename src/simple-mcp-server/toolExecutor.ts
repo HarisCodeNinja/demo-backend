@@ -10,15 +10,7 @@ import { SearchEmployeesSchema, GetDepartmentsSchema } from './schemas';
 import { fetchEmployeeList } from '../modules/employee/service';
 import { fetchDepartmentList } from '../modules/department/service';
 import { getToolByName } from './tools';
-
-// Type definitions
-interface ToolResponse {
-  content: Array<{
-    type: string;
-    text: string;
-  }>;
-  isError: boolean;
-}
+import { ToolResponse } from './types';
 
 /**
  * Check if user has required roles to access a tool

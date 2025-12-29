@@ -4,25 +4,7 @@
  * Define all available tools with their schemas
  */
 
-export interface ToolProperty {
-  type: string;
-  description: string;
-  default?: any;
-  properties?: Record<string, ToolProperty>;
-}
-
-export interface ToolInputSchema {
-  type: string;
-  properties: Record<string, ToolProperty>;
-  required: string[];
-}
-
-export interface Tool {
-  name: string;
-  description: string;
-  inputSchema: ToolInputSchema;
-  requiredRoles?: string[]; // Roles required to access this tool
-}
+import { Tool } from './types';
 
 export const tools: Tool[] = [
   {

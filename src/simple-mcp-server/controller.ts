@@ -8,34 +8,14 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import { tools, getToolByName } from './tools';
 import { execute as executeTool } from './toolExecutor';
-import { AuthRequest, JWTPayload } from './middleware';
 import { env } from '../config/env';
-
-interface OAuthTokenRequest {
-  grant_type: string;
-  client_id: string;
-  client_secret: string; // JWT token generated on client side with user_id and roles
-}
-
-interface RPCRequest {
-  jsonrpc: string;
-  id: string | number | null;
-  method: string;
-  params?: {
-    name?: string;
-    arguments?: Record<string, any>;
-  };
-}
-
-interface RPCResponse {
-  jsonrpc: string;
-  id: string | number | null;
-  result?: any;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
+import {
+  AuthRequest,
+  JWTPayload,
+  OAuthTokenRequest,
+  RPCRequest,
+  RPCResponse,
+} from './types';
 
 /**
  * Simple MCP Controller
