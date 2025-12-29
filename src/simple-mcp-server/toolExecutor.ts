@@ -6,12 +6,13 @@
  */
 
 import { Request } from 'express';
-import { SearchEmployeesSchema, GetDepartmentsSchema } from './schemas';
-import { fetchEmployeeList } from '../modules/employee/service';
-import { fetchDepartmentList } from '../modules/department/service';
 import { getToolByName } from './tools';
 import { ToolResponse } from './types';
 import { hasRequiredRoles } from '../helper/auth';
+import { employeeQueryValidator } from '../modules/employee/validation';
+import { fetchEmployeeList } from '../modules/employee/service';
+import { departmentQueryValidator } from '../modules/department/validation';
+import { fetchDepartmentList } from '../modules/department/service';
 
 /**
  * Create standardized MCP tool response
@@ -52,7 +53,7 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
     switch (toolName) {
       case 'search_employees': {
         // Validate with existing employeeQueryValidator extended with MCP fields
-        const validatedArgs = SearchEmployeesSchema.parse(args);
+        const validatedArgs = employeeQueryValidator.parse(args);
 
         // Call service function directly
         const result = await fetchEmployeeList({
@@ -72,7 +73,7 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
 
       case 'get_departments': {
         // Validate with existing departmentQueryValidator extended with MCP fields
-        const validatedArgs = GetDepartmentsSchema.parse(args);
+        const validatedArgs = departmentQueryValidator.parse(args);
 
         // Call service function directly
         const result = await fetchDepartmentList({

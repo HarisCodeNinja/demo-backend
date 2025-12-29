@@ -3,6 +3,9 @@ import { z } from 'zod';
 export const employeeQueryValidator = z.object({
   page: z.coerce.number().optional().nullable(),
   pageSize: z.coerce.number().optional().nullable(),
+  searchTerm: z.string().optional().nullable(),
+  departmentId: z.string().uuid('Invalid UUID format').optional().nullable(),
+  status: z.string().optional().nullable(),
 });
 
 export const employeeParamValidator = z.object({

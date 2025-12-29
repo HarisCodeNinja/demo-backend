@@ -48,11 +48,6 @@ export const tools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        includeEmployeeCount: {
-          type: 'boolean',
-          description: 'Include number of active employees in each department',
-          default: true,
-        },
         page: {
           type: 'number',
           description: 'Page number for pagination (default 0)',
