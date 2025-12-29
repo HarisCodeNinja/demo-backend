@@ -11,8 +11,8 @@ import { ToolResponse } from './types';
 import { hasRequiredRoles } from '../helper/auth';
 import { employeeQueryValidator } from '../modules/employee/validation';
 import { fetchEmployeeList } from '../modules/employee/service';
-import { departmentQueryValidator } from '../modules/department/validation';
-import { fetchDepartmentList } from '../modules/department/service';
+import { createDepartmentPayloadValidator, departmentParamValidator, departmentQueryValidator, updateDepartmentPayloadValidator } from '../modules/department/validation';
+import { addDepartment, deleteDepartment, fetchDepartmentList, updateDepartment } from '../modules/department/service';
 
 /**
  * Create standardized MCP tool response
@@ -80,6 +80,59 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
           page: validatedArgs.page ?? 0,
           pageSize: validatedArgs.pageSize ?? 20,
         });
+
+        // Return formatted response
+        return createToolResponse({
+          ...result,
+          meta: {
+            ...result.meta,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+        case 'add_department': {
+        // Validate with existing departmentQueryValidator extended with MCP fields
+        const departmentPayload = createDepartmentPayloadValidator.parse(args);
+
+        // Call service function directly
+        const result = await addDepartment(departmentPayload);
+
+        // Return formatted response
+        return createToolResponse({
+          ...result,
+          meta: {
+            ...result.meta,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+    case 'edit_department': {
+        // Validate with existing departmentQueryValidator extended with MCP fields
+        const departmentId = args.departmentId;
+        delete args.departmentId; // Remove from payload
+        const departmentPayload = updateDepartmentPayloadValidator(departmentId).parse(args);
+
+        // Call service function directly
+        const result = await updateDepartment(departmentId, departmentPayload);
+
+        // Return formatted response
+        return createToolResponse({
+          ...result,
+          meta: {
+            ...result.meta,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+      case 'delete_department': {
+        // Validate with existing departmentQueryValidator extended with MCP fields
+        const departmentPayload = departmentParamValidator.parse(args);
+
+        // Call service function directly
+        const result = await deleteDepartment(departmentPayload.departmentId);
 
         // Return formatted response
         return createToolResponse({
