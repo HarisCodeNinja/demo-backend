@@ -50,6 +50,16 @@ export const getScope = async (user: User, object: string) => {
   return scope;
 };
 
+export const hasRequiredRoles = (userRoles: string[], requiredRoles?: string[]): boolean => {
+  // If no roles required, allow access
+  if (!requiredRoles || requiredRoles.length === 0) {
+    return true;
+  }
+
+  // Check if user has at least one of the required roles
+  return requiredRoles.some((role) => userRoles.includes(role));
+};
+
 export const requireRoles = (roles: string | string[]) => {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   return (req: Request, res: Response, next: NextFunction) => {
@@ -58,7 +68,7 @@ export const requireRoles = (roles: string | string[]) => {
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    if (!allowedRoles.some((role) => userRoles.includes(role))) {
+    if (!hasRequiredRoles(userRoles, allowedRoles)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     next();

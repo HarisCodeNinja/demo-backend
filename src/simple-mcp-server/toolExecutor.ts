@@ -11,19 +11,7 @@ import { fetchEmployeeList } from '../modules/employee/service';
 import { fetchDepartmentList } from '../modules/department/service';
 import { getToolByName } from './tools';
 import { ToolResponse } from './types';
-
-/**
- * Check if user has required roles to access a tool
- */
-function hasRequiredRole(userRoles: string[], requiredRoles?: string[]): boolean {
-  // If no roles required, allow access
-  if (!requiredRoles || requiredRoles.length === 0) {
-    return true;
-  }
-
-  // Check if user has at least one of the required roles
-  return userRoles.some((role) => requiredRoles.includes(role));
-}
+import { hasRequiredRoles } from '../helper/auth';
 
 /**
  * Create standardized MCP tool response
@@ -56,7 +44,7 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
     }
 
     // Check role-based access control
-    if (!hasRequiredRole(userRoles, tool.requiredRoles)) {
+    if (!hasRequiredRoles(userRoles, tool.requiredRoles)) {
       throw new Error(`Access denied. Required roles: ${tool.requiredRoles?.join(', ') || 'none'}. Your roles: ${userRoles.join(', ') || 'none'}`);
     }
 
