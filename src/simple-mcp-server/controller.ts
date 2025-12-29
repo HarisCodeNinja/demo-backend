@@ -9,15 +9,12 @@ import jwt from 'jsonwebtoken';
 import { tools, getToolByName } from './tools';
 import { execute as executeTool } from './toolExecutor';
 import { AuthRequest, JWTPayload } from './middleware';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'simple-mcp-secret-key';
-const CLIENT_ID = 'simple-mcp-client';
-const CLIENT_SECRET = 'simple-mcp-secret-123';
+import { env } from '../config/env';
 
 interface OAuthTokenRequest {
   grant_type: string;
   client_id: string;
-  client_secret: string;
+  client_secret: string; // JWT token generated on client side with user_id and roles
 }
 
 interface RPCRequest {
@@ -63,33 +60,36 @@ export class SimpleMCPController {
       return;
     }
 
-    // Validate credentials
-    if (client_id !== CLIENT_ID || client_secret !== CLIENT_SECRET) {
-      console.log('[OAuth] Invalid credentials');
+    // Validate JWT client_secret (generated on client side)
+    try {
+      // Decode and verify the JWT client_secret
+      const decoded = jwt.verify(client_secret, env.JWT_SECRET) as any;
+      const roles = decoded.scope || ['user:viewer'];
+
+      // Generate access token with user-specific roles
+      const payload: JWTPayload = {
+        client_id: client_id,
+        type: 'mcp_client',
+        roles: roles,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: '1h' });
+
+      console.log('[OAuth] ✅ Access token generated');
+
+      res.json({
+        access_token: token,
+        token_type: 'Bearer',
+        expires_in: 3600,
+      });
+    } catch (error) {
+      console.log('[OAuth] Invalid client_secret JWT:', error instanceof Error ? error.message : error);
       res.status(401).json({
         error: 'invalid_client',
         error_description: 'Invalid client credentials',
       });
-      return;
     }
-
-    // Generate JWT token
-    const payload: JWTPayload = {
-      client_id: client_id,
-      type: 'mcp_client',
-      roles: ['user:manager', 'user:hr'],
-      iat: Math.floor(Date.now() / 1000),
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: '1h' });
-
-    console.log('[OAuth] ✅ Token generated successfully');
-
-    res.json({
-      access_token: token,
-      token_type: 'Bearer',
-      expires_in: 3600,
-    });
   });
 
   static handleRPC = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -150,8 +150,11 @@ export class SimpleMCPController {
             throw new Error(`Unknown tool: ${params.name}`);
           }
 
-          // Execute tool (validation happens in toolExecutor with Zod schemas)
-          const toolResult = await executeTool(params.name, params.arguments || {}, req);
+          // Get user roles from authenticated request
+          const userRoles = req.user?.roles || [];
+
+          // Execute tool with role-based access control
+          const toolResult = await executeTool(params.name, params.arguments || {}, req, userRoles);
 
           result = toolResult;
           break;

@@ -21,12 +21,14 @@ export interface Tool {
   name: string;
   description: string;
   inputSchema: ToolInputSchema;
+  requiredRoles?: string[]; // Roles required to access this tool
 }
 
 export const tools: Tool[] = [
   {
     name: 'search_employees',
     description: 'Get paginated employee list from the real HRM database. Returns employees with department and designation info.',
+    requiredRoles: ['user:hr', 'user:manager'], // HR, Manager, or Admin access
     inputSchema: {
       type: 'object',
       properties: {
@@ -66,6 +68,7 @@ export const tools: Tool[] = [
   {
     name: 'get_departments',
     description: 'Get paginated department list from the real HRM database.',
+    requiredRoles: ['user:viewer', 'user:hr', 'user:manager', 'user:admin'], // All authenticated users
     inputSchema: {
       type: 'object',
       properties: {

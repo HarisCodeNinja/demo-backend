@@ -180,12 +180,14 @@ curl -X POST http://localhost:3000/simple-mcp/rpc \
 
 ## Connect with Claude Desktop
 
-### 1. Build the STDIO Proxy
+### 1. Build the Project
 
 ```bash
-cd src/simple-mcp-server
+# From project root
 npm run build
 ```
+
+This builds the entire project including simple-mcp-server. The compiled files will be in `dist/simple-mcp-server/`.
 
 ### 2. Edit Claude Desktop Config
 
@@ -199,11 +201,11 @@ Add:
 ```json
 {
   "mcpServers": {
-    "simple-mcp": {
+    "simple-mcp-hrm": {
       "command": "node",
-      "args": ["C:/Users/HarisShahid/Downloads/HRM-backend-1217/src/simple-mcp-server/dist/simple-mcp-server/stdio-proxy.js"],
+      "args": ["C:/Users/YourUsername/Downloads/HRM-backend-1217/dist/simple-mcp-server/stdio-proxy.js"],
       "env": {
-        "REMOTE_MCP_URL": "http://localhost:{port_on_which_your_server_is_running}/simple-mcp",
+        "REMOTE_MCP_URL": "http://localhost:8000/simple-mcp",
         "MCP_CLIENT_ID": "simple-mcp-client",
         "MCP_CLIENT_SECRET": "simple-mcp-secret-123"
       }
@@ -381,10 +383,11 @@ Health check.
 ### Claude Desktop not connecting
 
 1. Ensure main HRM app is running
-2. Build stdio-proxy: `npm run build`
-3. Check REMOTE_MCP_URL in config points to `http://localhost:3000/simple-mcp`
-4. Restart Claude Desktop
-5. Check MCP logs in Claude Desktop
+2. Build the project: `npm run build` (from project root)
+3. Check REMOTE_MCP_URL in config points to `http://localhost:8000/simple-mcp` (or your app's port)
+4. Verify stdio-proxy path: `dist/simple-mcp-server/stdio-proxy.js` (not `src/...`)
+5. Restart Claude Desktop
+6. Check MCP logs in Claude Desktop
 
 ### Authentication errors
 
@@ -396,8 +399,9 @@ Health check.
 To make changes to this module:
 
 1. Edit files in `src/simple-mcp-server/`
-2. Main app will auto-reload (if using `npm run dev`)
-3. For STDIO proxy changes, rebuild: `npm run build` in simple-mcp-server directory
+2. For HTTP routes: Main app will auto-reload (if using `npm run dev`)
+3. For STDIO proxy changes: Rebuild with `npm run build` from project root
+4. Test STDIO proxy: `npm run simple-mcp:dev` (runs without building)
 
 ## Learn More
 

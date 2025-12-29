@@ -5,8 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'simple-mcp-secret-key';
+import { env } from '../config/env';
 
 export interface JWTPayload {
   client_id: string;
@@ -35,7 +34,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET as string) as JWTPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
     req.user = decoded;
     next();
   } catch (err) {

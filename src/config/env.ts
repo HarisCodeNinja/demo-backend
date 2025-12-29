@@ -14,7 +14,7 @@ const EnvSchema = z.object({
   DB_USER: z.string(),
   DB_PASS: z.string(),
   DB_SYNC: z.enum(['true', 'false']).default('false'),
-  
+
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
@@ -25,6 +25,8 @@ const EnvSchema = z.object({
   // AI / MCP Configuration
   CLAUDE_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  MCP_CLIENT_ID: z.string().optional(),
+  MCP_CLIENT_SECRET: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

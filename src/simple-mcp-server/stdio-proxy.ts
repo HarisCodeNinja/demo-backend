@@ -13,8 +13,8 @@ import fetch from 'node-fetch';
 
 // Configuration
 const REMOTE_SERVER = process.env.REMOTE_MCP_URL || 'http://localhost:3001';
-const CLIENT_ID = process.env.MCP_CLIENT_ID || 'simple-mcp-client';
-const CLIENT_SECRET = process.env.MCP_CLIENT_SECRET || 'simple-mcp-secret-123';
+const CLIENT_ID = process.env.MCP_CLIENT_ID || 'mcp-default';
+const CLIENT_SECRET = process.env.MCP_CLIENT_SECRET; // JWT token with user_id and roles
 
 let accessToken: string | null = null;
 let requestId = 0;
@@ -49,6 +49,10 @@ interface RPCResponse {
 
 async function getAccessToken(): Promise<string> {
   if (accessToken) return accessToken;
+
+  if (!CLIENT_SECRET) {
+    throw new Error('MCP_CLIENT_SECRET is required (JWT token with user_id and roles)');
+  }
 
   console.error('[Proxy] Getting access token...');
 
