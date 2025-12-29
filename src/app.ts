@@ -8,6 +8,8 @@ import { errors as celebrateErrors } from 'celebrate';
 import rateLimit from 'express-rate-limit';
 import { prefixRoutes } from './util/routeConfig';
 import { defaultRoutes } from './config/routes/defaultRoutes';
+import { mcpRouter } from './config/routes/mcpRoutes';
+
 
 import { errorHandler } from './middleware/errorHandler';
 import { setupSwagger } from './config/swagger';
@@ -45,6 +47,9 @@ defaultRoutes.forEach((routeConfig) => {
     app.use(routeConfig.path, router);
   });
 });
+
+// Register MCP routes
+app.use('/simple-mcp', mcpRouter);
 
 // Celebrate validation error formatting
 app.use(celebrateErrors());
