@@ -59,6 +59,9 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
         const result = await fetchEmployeeList({
           page: validatedArgs.page ?? 0,
           pageSize: validatedArgs.pageSize ?? 20,
+          departmentId: validatedArgs.departmentId ?? undefined,
+          searchTerm: validatedArgs.searchTerm ?? undefined,
+          status: validatedArgs.status ?? undefined,
         });
 
         // Return formatted response
@@ -91,9 +94,9 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
         });
       }
 
-        case 'add_department': {
-        // Validate with existing departmentQueryValidator extended with MCP fields
-        const departmentPayload = createDepartmentPayloadValidator.parse(args);
+      case 'add_department': {
+        // Validate with existing createDepartmentPayloadValidator (async validation)
+        const departmentPayload = await createDepartmentPayloadValidator.parseAsync(args);
 
         // Call service function directly
         const result = await addDepartment(departmentPayload);
@@ -102,43 +105,42 @@ export async function execute(toolName: string, args: Record<string, any>, req: 
         return createToolResponse({
           ...result,
           meta: {
-            ...result.meta,
             timestamp: new Date().toISOString(),
           },
         });
       }
 
-    case 'edit_department': {
-        // Validate with existing departmentQueryValidator extended with MCP fields
+      case 'edit_department': {
+        // Extract departmentId first for validation
         const departmentId = args.departmentId;
-        delete args.departmentId; // Remove from payload
-        const departmentPayload = updateDepartmentPayloadValidator(departmentId).parse(args);
+
+        // Validate the payload (without departmentId)
+        const { departmentId: _, ...payloadWithoutId } = args;
+        const departmentPayload = await updateDepartmentPayloadValidator(departmentId).parseAsync(payloadWithoutId);
 
         // Call service function directly
-        const result = await updateDepartment(departmentId, departmentPayload);
+        const result = await updateDepartment({ departmentId }, departmentPayload);
 
         // Return formatted response
         return createToolResponse({
           ...result,
           meta: {
-            ...result.meta,
             timestamp: new Date().toISOString(),
           },
         });
       }
 
       case 'delete_department': {
-        // Validate with existing departmentQueryValidator extended with MCP fields
+        // Validate with existing departmentParamValidator
         const departmentPayload = departmentParamValidator.parse(args);
 
-        // Call service function directly
-        const result = await deleteDepartment(departmentPayload.departmentId);
+        // Call service function directly (pass just the ID string)
+        const result = await deleteDepartment({ departmentId: departmentPayload.departmentId });
 
         // Return formatted response
         return createToolResponse({
           ...result,
           meta: {
-            ...result.meta,
             timestamp: new Date().toISOString(),
           },
         });

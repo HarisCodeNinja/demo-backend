@@ -62,6 +62,55 @@ export const tools: Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'add_department',
+    description: 'Create a new department in the HRM database. Requires a unique department name.',
+    requiredRoles: ['user:hr', 'user:admin'], // HR or Admin access
+    inputSchema: {
+      type: 'object',
+      properties: {
+        departmentName: {
+          type: 'string',
+          description: 'Unique name for the new department (e.g., "Engineering", "Sales")',
+        },
+      },
+      required: ['departmentName'],
+    },
+  },
+  {
+    name: 'edit_department',
+    description: 'Update an existing department name. Requires department UUID and new department name.',
+    requiredRoles: ['user:hr', 'user:admin'], // HR or Admin access
+    inputSchema: {
+      type: 'object',
+      properties: {
+        departmentId: {
+          type: 'string',
+          description: 'UUID of the department to update',
+        },
+        departmentName: {
+          type: 'string',
+          description: 'New unique name for the department',
+        },
+      },
+      required: ['departmentId', 'departmentName'],
+    },
+  },
+  {
+    name: 'delete_department',
+    description: 'Delete a department from the HRM database. Requires department UUID. WARNING: This is a destructive operation.',
+    requiredRoles: ['user:admin'], // Admin only
+    inputSchema: {
+      type: 'object',
+      properties: {
+        departmentId: {
+          type: 'string',
+          description: 'UUID of the department to delete',
+        },
+      },
+      required: ['departmentId'],
+    },
+  },
 ];
 
 /**
