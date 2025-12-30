@@ -5,77 +5,17 @@
 
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
-import jwt from 'jsonwebtoken';
 import { tools, getToolByName } from './tools';
 import { execute as executeTool } from './toolExecutor';
-import { env } from '../config/env';
-import {
-  AuthRequest,
-  JWTPayload,
-  OAuthTokenRequest,
-  RPCRequest,
-  RPCResponse,
-} from './types';
+import { AuthRequest, RPCRequest, RPCResponse } from './types';
 
 /**
  * Simple MCP Controller
  * All route handlers as static methods
  */
 export class SimpleMCPController {
-  /**
-   * POST /oauth/token
-   * Get OAuth access token using client credentials
-   */
-  static getOAuthToken = asyncHandler(async (req: Request<{}, {}, OAuthTokenRequest>, res: Response) => {
-    const { grant_type, client_id, client_secret } = req.body;
-
-    console.log('[OAuth] Token request:', { grant_type, client_id });
-
-    // Validate grant type
-    if (grant_type !== 'client_credentials') {
-      res.status(400).json({
-        error: 'unsupported_grant_type',
-        error_description: 'Only client_credentials grant type is supported',
-      });
-      return;
-    }
-
-    // Validate JWT client_secret (generated on client side)
-    try {
-      // Decode and verify the JWT client_secret
-      const decoded = jwt.verify(client_secret, env.JWT_SECRET) as any;
-      const roles = decoded.scope || ['user:viewer'];
-
-      // Generate access token with user-specific roles
-      const payload: JWTPayload = {
-        client_id: client_id,
-        type: 'mcp_client',
-        roles: roles,
-        iat: Math.floor(Date.now() / 1000),
-      };
-
-      const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: '1h' });
-
-      console.log('[OAuth] ✅ Access token generated');
-
-      res.json({
-        access_token: token,
-        token_type: 'Bearer',
-        expires_in: 3600,
-      });
-    } catch (error) {
-      console.log('[OAuth] Invalid client_secret JWT:', error instanceof Error ? error.message : error);
-      res.status(401).json({
-        error: 'invalid_client',
-        error_description: 'Invalid client credentials',
-      });
-    }
-  });
-
   static handleRPC = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { jsonrpc, id, method, params } = req.body as RPCRequest;
-
-    console.log(`[RPC] Request: ${method}`, params ? JSON.stringify(params).substring(0, 100) : '');
 
     // Validate JSON-RPC version
     if (jsonrpc !== '2.0') {
@@ -156,8 +96,6 @@ export class SimpleMCPController {
           } as RPCResponse);
           return;
       }
-
-      console.log(`[RPC] ✅ Success: ${method}`);
 
       res.json({
         jsonrpc: '2.0',

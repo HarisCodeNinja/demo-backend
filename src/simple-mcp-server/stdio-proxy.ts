@@ -10,6 +10,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 import fetch from 'node-fetch';
+import { OAuthTokenResponse, RPCRequest, RPCResponse } from './types';
 
 // Configuration
 const REMOTE_SERVER = process.env.REMOTE_MCP_URL || 'http://localhost:3001';
@@ -18,30 +19,6 @@ const CLIENT_SECRET = process.env.MCP_CLIENT_SECRET; // JWT token with user_id a
 
 let accessToken: string | null = null;
 let requestId = 0;
-
-// Type definitions
-interface OAuthTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-interface RPCRequest {
-  jsonrpc: string;
-  id: number;
-  method: string;
-  params?: any;
-}
-
-interface RPCResponse {
-  jsonrpc: string;
-  id: number;
-  result?: any;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
 
 // ============================================
 // OAUTH TOKEN MANAGEMENT

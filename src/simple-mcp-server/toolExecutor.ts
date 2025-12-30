@@ -36,8 +36,6 @@ function createToolResponse(data: any): ToolResponse {
  */
 export async function execute(toolName: string, args: Record<string, any>, req: Request, userRoles: string[] = []): Promise<ToolResponse> {
   try {
-    console.log(`[ToolExecutor] Executing: ${toolName} with roles:`, userRoles);
-
     // Get tool definition to check required roles
     const tool = getToolByName(toolName);
     if (!tool) {

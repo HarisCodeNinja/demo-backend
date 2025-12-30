@@ -5,7 +5,7 @@
 
 import { Router } from 'express';
 import { SimpleMCPController } from '../../simple-mcp-server/controller';
-import { authenticateToken } from '../../simple-mcp-server/middleware';
+import { authenticateToken, getOAuthToken } from '../../simple-mcp-server/middleware';
 
 const mcpRouter = Router();
 
@@ -15,7 +15,7 @@ const mcpRouter = Router();
  */
 
 // OAuth token endpoint (public)
-mcpRouter.post('/oauth/token', SimpleMCPController.getOAuthToken);
+mcpRouter.post('/oauth/token', getOAuthToken);
 
 // Health check endpoint (public)
 mcpRouter.get('/health', SimpleMCPController.getHealth);

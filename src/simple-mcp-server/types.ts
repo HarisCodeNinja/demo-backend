@@ -64,3 +64,9 @@ export interface ToolResponse {
   }>;
   isError: boolean;
 }
+
+export interface OAuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
