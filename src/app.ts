@@ -17,7 +17,7 @@ import { setupSwagger } from './config/swagger';
 const app = express();
 
 // Honor X-Forwarded-* headers when sitting behind proxies/tunnels (ngrok, cloudflared, etc.)
-// app.set('trust proxy', true);
+app.set('trust proxy', true);
 
 // Core middlewares
 app.use(express.json());
