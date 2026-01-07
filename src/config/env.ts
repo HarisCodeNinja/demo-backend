@@ -22,6 +22,9 @@ const EnvSchema = z.object({
 
   CORS_ORIGINS: z.string().default(''),
 
+  // Attendance Seeding Configuration
+  ATTENDANCE_CRON_SCHEDULE: z.string().default('0 0 * * *'), // Default: midnight daily
+
   // AI / MCP Configuration
   CLAUDE_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),

@@ -9,7 +9,7 @@ import rateLimit from 'express-rate-limit';
 import { prefixRoutes } from './util/routeConfig';
 import { defaultRoutes } from './config/routes/defaultRoutes';
 import { mcpRouter } from './config/routes/mcpRoutes';
-
+import attendanceSeedingRoutes from './automations/attendance-seeding-routes';
 
 import { errorHandler } from './middleware/errorHandler';
 import { setupSwagger } from './config/swagger';
@@ -50,6 +50,9 @@ defaultRoutes.forEach((routeConfig) => {
 
 // Register MCP routes
 app.use('/simple-mcp', mcpRouter);
+
+// Register attendance seeding monitoring routes
+app.use('/api/attendance-seeding', attendanceSeedingRoutes);
 
 // Celebrate validation error formatting
 app.use(celebrateErrors());
